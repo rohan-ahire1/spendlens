@@ -69,6 +69,7 @@ function RootLayoutContent() {
             gestureEnabled: false,
           }}
         />
+        <Stack.Screen name="budget" options={{ presentation: 'modal', title: 'Budgets', headerShown: true }} />
       </Stack>
     </>
   );
