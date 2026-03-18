@@ -15,6 +15,7 @@ import { useTransactionFlowStore } from '../../stores/transaction-flow';
 import { getByMonth } from '../../db/repositories/transactions';
 import { formatINR } from '../../utils/currency';
 import { Card } from '../../components/ui/Card';
+import { useCategorization } from '../../hooks/useCategorization';
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -35,6 +36,10 @@ export default function HomeScreen() {
   const { colors, tokens } = useTheme();
   const router = useRouter();
   const flowStatus = useTransactionFlowStore((s) => s.status);
+  const transactionId = useTransactionFlowStore((s) => s.transactionId);
+  const { suggestion, isAutoApplied } = useCategorization(
+    flowStatus === 'categorizing' ? transactionId : null
+  );
 
   const [todayTotal, setTodayTotal] = useState(0);
   const [monthTotal, setMonthTotal] = useState(0);
@@ -74,12 +79,21 @@ export default function HomeScreen() {
     }
   }, [flowStatus]);
 
-  // Navigate to category prompt when needed
+  // Handle categorization: auto-apply or prompt user
   useEffect(() => {
     if (flowStatus === 'categorizing') {
-      router.push('/category-prompt');
+      if (isAutoApplied) {
+        // High confidence — auto-categorized, finish flow
+        useTransactionFlowStore.getState().setCategoryAndFinish(suggestion!.categoryId);
+      } else if (suggestion) {
+        // Low confidence — show prompt with pre-selected suggestion
+        router.push(`/category-prompt?suggested=${suggestion.categoryId}`);
+      } else {
+        // No suggestion at all — show prompt without pre-selection
+        router.push('/category-prompt');
+      }
     }
-  }, [flowStatus]);
+  }, [flowStatus, isAutoApplied, suggestion]);
 
   // Show confirmation dialog when returning from UPI app
   useEffect(() => {

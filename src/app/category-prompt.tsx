@@ -9,16 +9,19 @@ import {
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useTheme } from '../theme/provider';
 import { useTransactionFlowStore } from '../stores/transaction-flow';
 import { getVisible } from '../db/repositories/categories';
+import { getById } from '../db/repositories/transactions';
+import { upsertRule } from '../db/repositories/user-rules';
 import type { Category } from '../db/types';
 
 export default function CategoryPromptScreen() {
   const { colors, tokens } = useTheme();
   const router = useRouter();
-  const { setCategoryAndFinish, status } = useTransactionFlowStore();
+  const { suggested } = useLocalSearchParams<{ suggested?: string }>();
+  const { setCategoryAndFinish, status, transactionId } = useTransactionFlowStore();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +44,16 @@ export default function CategoryPromptScreen() {
   async function handleSelect(categoryId: string) {
     setSelecting(categoryId);
     try {
+      // Learn from user's choice for future auto-categorization
+      if (transactionId) {
+        const tx = await getById(transactionId);
+        if (tx?.recipient_name) {
+          await upsertRule('merchant_name', tx.recipient_name.toLowerCase(), categoryId);
+        }
+        if (tx?.recipient_upi_id) {
+          await upsertRule('upi_id', tx.recipient_upi_id.toLowerCase(), categoryId);
+        }
+      }
       await setCategoryAndFinish(categoryId);
       router.back();
     } catch {
@@ -67,7 +80,7 @@ export default function CategoryPromptScreen() {
           What was this for?
         </Text>
         <Text style={[styles.subtitle, { color: colors.textSecondary, fontSize: tokens.typography.sizes.sm, marginTop: tokens.spacing.xs }]}>
-          Pick a category to track your spending
+          {suggested ? 'We think this might be the right one — tap to confirm or pick another' : 'Pick a category to track your spending'}
         </Text>
       </View>
 
@@ -85,14 +98,15 @@ export default function CategoryPromptScreen() {
           ItemSeparatorComponent={() => <View style={{ height: tokens.spacing.sm }} />}
           renderItem={({ item }) => {
             const isSelecting = selecting === item.id;
+            const isSuggested = suggested === item.id;
             return (
               <TouchableOpacity
                 style={[
                   styles.categoryItem,
                   {
                     flex: 1,
-                    backgroundColor: colors.surface,
-                    borderColor: colors.border,
+                    backgroundColor: isSuggested ? colors.primary + '15' : colors.surface,
+                    borderColor: isSuggested ? colors.primary : colors.border,
                     borderRadius: tokens.radii.lg,
                     padding: tokens.spacing.md,
                     opacity: selecting && !isSelecting ? 0.5 : 1,
