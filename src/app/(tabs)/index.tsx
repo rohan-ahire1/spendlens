@@ -163,7 +163,7 @@ export default function HomeScreen() {
             icon="⬡"
             label="Scan QR"
             color={colors.primary}
-            onPress={() => Alert.alert('Coming Soon', 'QR scanning will be available soon.')}
+            onPress={() => router.push('/scan')}
           />
           <QuickPayButton
             icon="↗"

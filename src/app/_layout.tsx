@@ -58,6 +58,7 @@ function RootLayoutContent() {
       <AppStateListener />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="scan" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="pay" options={{ presentation: 'modal', title: 'Pay', headerShown: true }} />
         <Stack.Screen
           name="category-prompt"
