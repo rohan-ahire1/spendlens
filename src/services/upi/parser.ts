@@ -5,12 +5,13 @@ import { UpiPaymentRequest } from './types';
  * Returns null if URI doesn't start with `upi://` or has no `pa=` param.
  */
 export function parseUpiUri(uri: string): UpiPaymentRequest | null {
-  if (!uri.startsWith('upi://')) {
+  const trimmedUri = uri.trim();
+  if (!trimmedUri.toLowerCase().startsWith('upi://')) {
     return null;
   }
 
   // Replace upi:// with https:// so URL parser can handle it
-  const normalized = uri.replace('upi://', 'https://upi/');
+  const normalized = trimmedUri.replace(/^upi:\/\//i, 'https://upi/');
   let params: URLSearchParams;
   try {
     const url = new URL(normalized);
@@ -56,19 +57,35 @@ export function parseUpiUri(uri: string): UpiPaymentRequest | null {
 
 /**
  * Build a UPI URI from a UpiPaymentRequest.
- * Only includes non-undefined fields. URL-encodes values.
+ * Only includes non-undefined fields.
+ *
+ * We avoid URLSearchParams here because some UPI apps are picky about how
+ * deeplink params are encoded, especially the VPA (`pa`) value. In practice
+ * they are more reliable when `@` is preserved and spaces are encoded as `%20`
+ * rather than `+`.
  */
 export function buildUpiUri(request: UpiPaymentRequest): string {
-  const params = new URLSearchParams();
+  const parts: string[] = [`pa=${encodeUpiValue(request.payeeAddress, { preserveAt: true })}`];
 
-  params.set('pa', request.payeeAddress);
+  if (request.payeeName !== undefined) parts.push(`pn=${encodeUpiValue(request.payeeName)}`);
+  if (request.amount !== undefined) parts.push(`am=${encodeUpiValue(request.amount.toFixed(2))}`);
+  if (request.currencyCode !== undefined) parts.push(`cu=${encodeUpiValue(request.currencyCode)}`);
+  if (request.transactionNote !== undefined) parts.push(`tn=${encodeUpiValue(request.transactionNote)}`);
+  if (request.merchantCode !== undefined) parts.push(`mc=${encodeUpiValue(request.merchantCode)}`);
+  if (request.transactionRef !== undefined) parts.push(`tr=${encodeUpiValue(request.transactionRef)}`);
 
-  if (request.payeeName !== undefined) params.set('pn', request.payeeName);
-  if (request.amount !== undefined) params.set('am', request.amount.toFixed(2));
-  if (request.currencyCode !== undefined) params.set('cu', request.currencyCode);
-  if (request.transactionNote !== undefined) params.set('tn', request.transactionNote);
-  if (request.merchantCode !== undefined) params.set('mc', request.merchantCode);
-  if (request.transactionRef !== undefined) params.set('tr', request.transactionRef);
+  return `upi://pay?${parts.join('&')}`;
+}
 
-  return `upi://pay?${params.toString()}`;
+function encodeUpiValue(
+  value: string,
+  options?: { preserveAt?: boolean },
+): string {
+  let encoded = encodeURIComponent(value);
+
+  if (options?.preserveAt) {
+    encoded = encoded.replace(/%40/g, '@');
+  }
+
+  return encoded;
 }

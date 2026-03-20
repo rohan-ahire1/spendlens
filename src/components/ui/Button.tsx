@@ -41,15 +41,25 @@ export function Button({
 
   const txtColor =
     variant === 'primary' ? colors.primaryText :
-    colors.text;
+    variant === 'secondary' ? colors.text : colors.textSecondary;
 
   const borderColor =
-    variant === 'secondary' ? colors.border : 'transparent';
+    variant === 'ghost' ? 'transparent' : colors.border;
 
   const paddingVertical =
     size === 'sm' ? tokens.spacing.sm :
     size === 'lg' ? tokens.spacing.md + 4 :
     tokens.spacing.md;
+
+  const shadowStyle = variant === 'primary'
+    ? {
+        shadowColor: colors.text,
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.12,
+        shadowRadius: 18,
+        elevation: 5,
+      }
+    : null;
 
   return (
     <TouchableOpacity
@@ -61,11 +71,12 @@ export function Button({
         {
           backgroundColor: bgColor,
           borderColor,
-          borderRadius: tokens.radii.md,
+          borderRadius: tokens.radii.full,
           paddingVertical,
           paddingHorizontal: tokens.spacing.lg,
           opacity: isDisabled ? 0.5 : 1,
         },
+        shadowStyle,
         style,
       ]}
     >
@@ -79,6 +90,8 @@ export function Button({
               color: txtColor,
               fontSize: size === 'sm' ? tokens.typography.sizes.sm : tokens.typography.sizes.md,
               fontWeight: tokens.typography.weights.semibold,
+              fontFamily: tokens.typography.families.accent,
+              letterSpacing: 0.2,
             },
             textStyle,
           ]}

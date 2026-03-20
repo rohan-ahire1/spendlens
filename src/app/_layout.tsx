@@ -56,7 +56,7 @@ function RootLayoutContent() {
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
       <AppStateListener />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack initialRouteName="(tabs)" screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="scan" options={{ presentation: 'modal', headerShown: false }} />
         <Stack.Screen name="pay" options={{ presentation: 'modal', title: 'Pay', headerShown: true }} />

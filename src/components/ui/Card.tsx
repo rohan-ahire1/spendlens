@@ -26,6 +26,7 @@ export function Card({ children, style, padding = 'md' }: CardProps) {
           borderColor: colors.border,
           borderRadius: tokens.radii.lg,
           padding: paddingValue,
+          shadowColor: colors.text,
         },
         style,
       ]}
@@ -38,10 +39,9 @@ export function Card({ children, style, padding = 'md' }: CardProps) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowRadius: 20,
+    elevation: 4,
   },
 });

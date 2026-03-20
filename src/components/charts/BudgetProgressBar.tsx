@@ -23,9 +23,28 @@ export function BudgetProgressBar({ spent, budget, label }: BudgetProgressBarPro
       : colors.success;
 
   return (
-    <View style={styles.container}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.background,
+          borderColor: colors.border,
+          borderRadius: tokens.radii.md,
+          padding: tokens.spacing.md,
+        },
+      ]}
+    >
       {label ? (
-        <Text style={[styles.label, { color: colors.textSecondary, fontSize: tokens.typography.sizes.sm }]}>
+        <Text
+          style={[
+            styles.label,
+            {
+              color: colors.textSecondary,
+              fontSize: tokens.typography.sizes.sm,
+              fontFamily: tokens.typography.families.accent,
+            },
+          ]}
+        >
           {label}
         </Text>
       ) : null}
@@ -42,7 +61,16 @@ export function BudgetProgressBar({ spent, budget, label }: BudgetProgressBarPro
         />
       </View>
       <View style={styles.row}>
-        <Text style={[styles.amount, { color: colors.text, fontSize: tokens.typography.sizes.sm }]}>
+        <Text
+          style={[
+            styles.amount,
+            {
+              color: colors.text,
+              fontSize: tokens.typography.sizes.sm,
+              fontFamily: tokens.typography.families.accent,
+            },
+          ]}
+        >
           {formatINR(spent)}
         </Text>
         <Text style={[styles.budget, { color: colors.textSecondary, fontSize: tokens.typography.sizes.sm }]}>
@@ -55,7 +83,8 @@ export function BudgetProgressBar({ spent, budget, label }: BudgetProgressBarPro
 
 const styles = StyleSheet.create({
   container: {
-    gap: 4,
+    gap: 8,
+    borderWidth: 1,
   },
   label: {
     marginBottom: 2,

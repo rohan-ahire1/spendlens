@@ -11,6 +11,21 @@ interface TransactionListItemProps {
   categoryColor?: string;
 }
 
+function getPaymentMethodLabel(method: Transaction['payment_method']): string {
+  switch (method) {
+    case 'qr':
+      return 'QR';
+    case 'upi_id':
+      return 'UPI ID';
+    case 'phone':
+      return 'Phone';
+    case 'contact':
+      return 'Contact';
+    default:
+      return 'UPI';
+  }
+}
+
 function StatusBadge({ status }: { status: Transaction['status'] }) {
   const { colors, tokens } = useTheme();
 
@@ -27,13 +42,24 @@ function StatusBadge({ status }: { status: Transaction['status'] }) {
         styles.badge,
         {
           backgroundColor: config.bg,
+          borderWidth: 1,
+          borderColor: config.color + '18',
           borderRadius: tokens.radii.full,
           paddingHorizontal: tokens.spacing.sm,
-          paddingVertical: 2,
+          paddingVertical: 4,
         },
       ]}
     >
-      <Text style={[styles.badgeText, { color: config.color, fontSize: 10 }]}>
+      <Text
+        style={[
+          styles.badgeText,
+          {
+            color: config.color,
+            fontSize: 10,
+            fontFamily: tokens.typography.families.accent,
+          },
+        ]}
+      >
         {config.label}
       </Text>
     </View>
@@ -53,6 +79,7 @@ export function TransactionListItem({
     transaction.recipient_upi_id ||
     transaction.recipient_phone ||
     'Unknown';
+  const paymentMethodLabel = getPaymentMethodLabel(transaction.payment_method);
 
   const date = new Date(transaction.created_at);
   const timeStr = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -62,48 +89,95 @@ export function TransactionListItem({
       style={[
         styles.container,
         {
+          backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
+          borderRadius: tokens.radii.lg,
           paddingVertical: tokens.spacing.md,
           paddingHorizontal: tokens.spacing.md,
-          borderBottomWidth: 1,
-          borderBottomColor: colors.border,
         },
       ]}
     >
-      {/* Category Icon */}
       <View
         style={[
           styles.iconCircle,
           {
-            backgroundColor: categoryColor + '22',
-            width: 44,
-            height: 44,
-            borderRadius: tokens.radii.full,
+            backgroundColor: categoryColor + '16',
+            width: 48,
+            height: 48,
+            borderRadius: tokens.radii.md,
           },
         ]}
       >
         <Text style={styles.iconText}>{categoryIcon}</Text>
       </View>
 
-      {/* Middle info */}
       <View style={styles.middle}>
         <Text
-          style={[styles.recipientText, { color: colors.text, fontSize: tokens.typography.sizes.md }]}
+          style={[
+            styles.recipientText,
+            {
+              color: colors.text,
+              fontSize: tokens.typography.sizes.md,
+              fontFamily: tokens.typography.families.accent,
+            },
+          ]}
           numberOfLines={1}
         >
           {recipientLabel}
         </Text>
         <View style={styles.metaRow}>
-          <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: tokens.typography.sizes.xs }]}>
-            {categoryName}
+          <View
+            style={[
+              styles.metaPill,
+              {
+                backgroundColor: colors.background,
+                borderColor: colors.border,
+                borderRadius: tokens.radii.full,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.metaText,
+                {
+                  color: colors.textSecondary,
+                  fontSize: tokens.typography.sizes.xs,
+                  fontFamily: tokens.typography.families.accent,
+                },
+              ]}
+            >
+              {categoryName}
+            </Text>
+          </View>
+          <Text
+            style={[
+              styles.metaText,
+              {
+                color: colors.textSecondary,
+                fontSize: tokens.typography.sizes.xs,
+                fontFamily: tokens.typography.families.body,
+              },
+            ]}
+          >
+            {paymentMethodLabel}
           </Text>
           <Text style={[styles.dot, { color: colors.textSecondary }]}>·</Text>
-          <Text style={[styles.metaText, { color: colors.textSecondary, fontSize: tokens.typography.sizes.xs }]}>
+          <Text
+            style={[
+              styles.metaText,
+              {
+                color: colors.textSecondary,
+                fontSize: tokens.typography.sizes.xs,
+                fontFamily: tokens.typography.families.body,
+              },
+            ]}
+          >
             {timeStr}
           </Text>
         </View>
       </View>
 
-      {/* Right side */}
       <View style={styles.right}>
         <Text
           style={[
@@ -112,6 +186,7 @@ export function TransactionListItem({
               color: transaction.status === 'failed' ? colors.textSecondary : colors.text,
               fontSize: tokens.typography.sizes.md,
               fontWeight: tokens.typography.weights.semibold,
+              fontFamily: tokens.typography.families.accent,
               textDecorationLine: transaction.status === 'failed' ? 'line-through' : 'none',
             },
           ]}
@@ -128,7 +203,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
   iconCircle: {
     alignItems: 'center',
@@ -136,27 +211,35 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   iconText: {
-    fontSize: 20,
+    fontSize: 22,
   },
   middle: {
     flex: 1,
-    gap: 3,
+    gap: 6,
   },
   recipientText: {
-    fontWeight: '500',
+    fontWeight: '600',
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  metaText: {},
+  metaPill: {
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  metaText: {
+    lineHeight: 16,
+  },
   dot: {
     fontSize: 10,
   },
   right: {
     alignItems: 'flex-end',
-    gap: 4,
+    gap: 8,
     flexShrink: 0,
   },
   amountText: {},
@@ -164,6 +247,6 @@ const styles = StyleSheet.create({
   badgeText: {
     fontWeight: '600',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.6,
   },
 });

@@ -9,19 +9,58 @@ import {
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme/provider';
 import { parseUpiUri } from '../services/upi/parser';
+import type { UpiPaymentRequest } from '../services/upi/types';
+import { useAppStore } from '../stores/app';
 import { useTransactionFlowStore } from '../stores/transaction-flow';
+import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 
 const SCAN_FRAME_SIZE = 260;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
+interface PendingScan {
+  request: UpiPaymentRequest;
+  rawUri: string;
+}
+
 export default function ScanScreen() {
   const { colors, tokens } = useTheme();
   const router = useRouter();
+  const preferredUpiApp = useAppStore((s) => s.preferredUpiApp);
+  const capture = useTransactionFlowStore((s) => s.capture);
+  const launch = useTransactionFlowStore((s) => s.launch);
   const [permission, requestPermission] = useCameraPermissions();
   const [torch, setTorch] = useState(false);
   const scannedRef = useRef(false);
+
+  const resetScanner = useCallback(() => {
+    scannedRef.current = false;
+  }, []);
+
+  const startQrPayment = useCallback(
+    async (pending: PendingScan) => {
+      try {
+        await capture(
+          {
+            ...pending.request,
+            currencyCode: pending.request.currencyCode ?? 'INR',
+          },
+          'qr',
+          { rawUpiUri: pending.rawUri, upiAppPackage: preferredUpiApp },
+        );
+        await launch(preferredUpiApp ?? undefined);
+        router.dismiss();
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Could not launch a UPI app.';
+        Alert.alert('Payment Error', msg);
+        resetScanner();
+      }
+    },
+    [capture, launch, preferredUpiApp, resetScanner, router],
+  );
 
   const handleBarCodeScanned = useCallback(
     ({ data }: { data: string }) => {
@@ -34,17 +73,10 @@ export default function ScanScreen() {
       }
 
       scannedRef.current = true;
-
-      const { capture, launch } = useTransactionFlowStore.getState();
-      capture(parsed, 'qr').then(() => {
-        return launch();
-      }).then(() => {
-        router.dismiss();
-      }).catch(() => {
-        scannedRef.current = false;
-      });
+      const nextPending = { request: parsed, rawUri: data };
+      void startQrPayment(nextPending);
     },
-    [router]
+    [startQrPayment],
   );
 
   if (!permission) {
@@ -58,31 +90,62 @@ export default function ScanScreen() {
   if (!permission.granted) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background, padding: tokens.spacing.xl }]}>
-        <Text style={[styles.permissionTitle, { color: colors.text }]}>Camera Access Required</Text>
-        <Text style={[styles.permissionBody, { color: colors.textSecondary, marginTop: tokens.spacing.sm }]}>
-          SpendLens needs camera access to scan UPI QR codes.
-        </Text>
-        <TouchableOpacity
-          style={[
-            styles.permissionBtn,
-            {
-              backgroundColor: colors.primary,
-              marginTop: tokens.spacing.lg,
-              borderRadius: tokens.radii.md,
-              paddingVertical: tokens.spacing.sm,
-              paddingHorizontal: tokens.spacing.lg,
-            },
-          ]}
-          onPress={requestPermission}
+        <Card
+          style={{
+            width: '100%',
+            maxWidth: 360,
+            alignItems: 'center',
+            padding: tokens.spacing.xl,
+          }}
         >
-          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Grant Permission</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={{ marginTop: tokens.spacing.md }}
-          onPress={() => router.dismiss()}
-        >
-          <Text style={{ color: colors.textSecondary, fontSize: 14 }}>Cancel</Text>
-        </TouchableOpacity>
+          <View
+            style={[
+              styles.permissionIcon,
+              {
+                backgroundColor: colors.primary + '12',
+                borderRadius: tokens.radii.full,
+              },
+            ]}
+          >
+            <Ionicons name="scan-outline" size={26} color={colors.primary} />
+          </View>
+          <Text
+            style={[
+              styles.permissionTitle,
+              {
+                color: colors.text,
+                fontSize: tokens.typography.sizes.xl,
+                fontFamily: tokens.typography.families.display,
+                marginTop: tokens.spacing.md,
+              },
+            ]}
+          >
+            Camera access required
+          </Text>
+          <Text
+            style={[
+              styles.permissionBody,
+              {
+                color: colors.textSecondary,
+                marginTop: tokens.spacing.sm,
+                fontSize: tokens.typography.sizes.sm,
+              },
+            ]}
+          >
+            SpendLens needs camera access to scan merchant and personal UPI QR codes.
+          </Text>
+          <Button
+            label="Allow camera"
+            onPress={requestPermission}
+            style={{ marginTop: tokens.spacing.lg, width: '100%' }}
+          />
+          <Button
+            label="Back"
+            variant="ghost"
+            onPress={() => router.dismiss()}
+            style={{ marginTop: tokens.spacing.sm }}
+          />
+        </Card>
       </View>
     );
   }
@@ -96,7 +159,6 @@ export default function ScanScreen() {
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={handleBarCodeScanned}
       />
-
       {/* Dark overlay — four rectangles around the scan frame */}
       {/* Top */}
       <View
@@ -170,17 +232,30 @@ export default function ScanScreen() {
         <View style={[styles.corner, styles.cornerBR, { borderColor: colors.primary }]} />
       </View>
 
-      {/* Hint text */}
       <View
         style={[
-          styles.hintContainer,
-          { top: (SCREEN_HEIGHT - SCAN_FRAME_SIZE) / 2 + SCAN_FRAME_SIZE + 24 },
+          styles.topInfoCard,
+          {
+            top: 64,
+            left: tokens.spacing.lg,
+            right: tokens.spacing.lg + 56,
+            backgroundColor: 'rgba(11, 12, 12, 0.58)',
+            borderRadius: tokens.radii.lg,
+            padding: tokens.spacing.md,
+          },
         ]}
       >
-        <Text style={styles.hintText}>Align QR code within the frame</Text>
+        <Text style={[styles.topInfoEyebrow, { color: 'rgba(255,255,255,0.75)' }]}>
+          QR Scan
+        </Text>
+        <Text style={[styles.topInfoTitle, { color: '#fff' }]}>
+          Align the code inside the frame.
+        </Text>
+        <Text style={[styles.topInfoCopy, { color: 'rgba(255,255,255,0.72)' }]}>
+          We keep the QR intact for payment compatibility, then ask you to confirm the result back in SpendLens.
+        </Text>
       </View>
 
-      {/* Close button */}
       <TouchableOpacity
         style={[
           styles.closeBtn,
@@ -194,10 +269,33 @@ export default function ScanScreen() {
         onPress={() => router.dismiss()}
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
-        <Text style={styles.closeBtnText}>✕</Text>
+        <Ionicons name="close" size={18} color="#fff" />
       </TouchableOpacity>
 
-      {/* Torch toggle */}
+      <View
+        style={[
+          styles.hintContainer,
+          {
+            top: (SCREEN_HEIGHT - SCAN_FRAME_SIZE) / 2 + SCAN_FRAME_SIZE + 28,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.hintPill,
+            {
+              backgroundColor: 'rgba(11, 12, 12, 0.52)',
+              borderRadius: tokens.radii.full,
+              paddingHorizontal: tokens.spacing.md,
+              paddingVertical: tokens.spacing.sm,
+            },
+          ]}
+        >
+          <Ionicons name="qr-code-outline" size={16} color="rgba(255,255,255,0.72)" />
+          <Text style={styles.hintText}>Align QR code within the frame</Text>
+        </View>
+      </View>
+
       <TouchableOpacity
         style={[
           styles.torchBtn,
@@ -210,7 +308,7 @@ export default function ScanScreen() {
         ]}
         onPress={() => setTorch((v) => !v)}
       >
-        <Text style={styles.torchBtnText}>⚡</Text>
+        <Ionicons name={torch ? 'flash' : 'flash-off'} size={22} color="#fff" />
       </TouchableOpacity>
     </View>
   );
@@ -272,10 +370,33 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: 'center',
   },
+  hintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   hintText: {
     color: 'rgba(255,255,255,0.75)',
     fontSize: 14,
     fontWeight: '500',
+  },
+  topInfoCard: {
+    position: 'absolute',
+  },
+  topInfoEyebrow: {
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  topInfoTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  topInfoCopy: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 8,
   },
   closeBtn: {
     position: 'absolute',
@@ -284,11 +405,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
   torchBtn: {
     position: 'absolute',
     width: 56,
@@ -296,11 +412,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  torchBtnText: {
-    fontSize: 24,
-  },
   permissionTitle: {
-    fontSize: 20,
     fontWeight: '700',
     textAlign: 'center',
   },
@@ -309,7 +421,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
-  permissionBtn: {
+  permissionIcon: {
+    width: 60,
+    height: 60,
     alignItems: 'center',
+    justifyContent: 'center',
   },
 });

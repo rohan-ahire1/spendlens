@@ -73,6 +73,22 @@ export async function updateStatus(
   );
 }
 
+export async function updateAmount(id: string, amountPaise: number): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'UPDATE transactions SET amount_paise = ? WHERE id = ?',
+    [amountPaise, id]
+  );
+}
+
+export async function removePending(id: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    'DELETE FROM transactions WHERE id = ? AND status = ?',
+    [id, 'pending']
+  );
+}
+
 export async function updateCategory(id: string, categoryId: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
