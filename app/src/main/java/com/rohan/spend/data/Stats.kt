@@ -20,16 +20,6 @@ data class Counting(
 
 data class CatTotal(val cat: Cat, val total: Long, val count: Int)
 
-data class Sub(
-    val payee: String,
-    val payeeKey: String,
-    val amount: Long,
-    val last: LocalDate,
-    val next: LocalDate,
-    val months: Int,
-    val duplicate: Boolean,
-)
-
 data class Change(val cat: Cat, val now: Long, val pct: Int)
 
 data class PlaceTotal(val payee: String, val cat: Cat, val total: Long, val visits: Int)
@@ -221,29 +211,11 @@ class Stats(
             .map { (p, l) -> Triple(p, l.sumOf { it.amount }, l.size) }
             .sortedByDescending { it.second }
 
-    /** Recurring charges: same payee and amount seen in 2+ months. */
-    val subs: List<Sub> by lazy {
-        val from = today.minusMonths(13)
-        txns.filter { it.debit && catOf(it) == Cat.SUBSCRIPTIONS && it.date().isAfter(from) }
-            .groupBy { it.payeeKey to (it.amount / 100) }
-            .mapNotNull { (_, l) ->
-                val months = l.map { it.month() }.distinct().size
-                val last = l.maxBy { it.time }
-                val lastDate = last.date()
-                if (months < 2 || ChronoUnit.DAYS.between(lastDate, today) > 40) null
-                else Sub(last.payee, last.payeeKey, last.amount, lastDate, lastDate.plusMonths(1), months, false)
-            }
-            .let { list ->
-                val byName = list.groupBy { it.payee.lowercase() }
-                list.map { s ->
-                    val same = byName[s.payee.lowercase()].orEmpty()
-                    s.copy(duplicate = same.size > 1 && s != same.maxBy { it.amount })
-                }
-            }
-            .sortedByDescending { it.amount }
-    }
+    /** Recurring charges by payee, with cadence, price rises and ones that stopped. See [detectSubs]. */
+    val subs: List<Subscription> by lazy { detectSubs(inCat(Cat.SUBSCRIPTIONS), today) }
 
-    val subsMonthly: Long get() = subs.sumOf { it.amount }
+    /** Live subscriptions a month, yearly ones spread over twelve. */
+    val subsMonthly: Long get() = subs.perMonth()
 
     fun atPayeeThisMonth(t: Txn): Pair<Long, Int> {
         val l = txns.filter { it.debit && it.payeeKey == t.payeeKey && it.month() == thisMonth }
