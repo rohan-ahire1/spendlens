@@ -51,6 +51,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.rohan.spend.data.Cat
+import com.rohan.spend.data.RuleInfo
+import com.rohan.spend.data.ruleInfos
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.style.TextOverflow
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.inr
 import java.time.LocalDate
@@ -160,9 +164,10 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 Text("Payments to these always go to the category shown.", style = T.small)
                 Spacer(Modifier.height(10.dp))
                 if (s.payeeRules.isEmpty()) EmptyNote("None yet. Change a category and keep \"Do this for all\" on.")
+                val rules = remember(s.payeeRules, s.txns) { ruleInfos(s.payeeRules, s.txns) }
                 LazyColumn {
-                    items(s.payeeRules.entries.sortedBy { it.key }.toList()) { (key, cat) ->
-                        RuleRow(key, cat) { vm.removeRule(key) }
+                    items(rules, key = { it.key }) { r ->
+                        RuleRow(r) { vm.removeRule(r.key) }
                     }
                 }
             }
@@ -171,13 +176,15 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
 }
 
 @Composable
-private fun RuleRow(key: String, cat: Cat, onRemove: () -> Unit) {
+private fun RuleRow(r: RuleInfo, onRemove: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        CatIcon(cat, 34.dp)
+        CatIcon(r.cat, 34.dp)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(key, style = T.body, maxLines = 1)
-            Text(cat.label, style = T.tiny)
+            Text(r.name, style = T.body, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val n = when (r.count) { 0 -> "no payments yet"; 1 -> "1 payment"; else -> "${r.count} payments" }
+            Text("${r.cat.label} · $n", style = T.tiny, maxLines = 1)
+            if (r.name != r.key) Text(r.key, style = T.tiny.copy(color = C.faint, fontSize = 11.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         RoundButton(Icons.Rounded.Close, "Remove rule", onRemove, size = 34.dp)
     }
