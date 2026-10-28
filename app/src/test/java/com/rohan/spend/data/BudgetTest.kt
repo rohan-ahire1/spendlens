@@ -31,10 +31,13 @@ class BudgetTest {
         assertEquals(Pace.FINE, pace(10_000_00, 10_000_00, 30, 30))
     }
 
-    @Test fun dayOneProjectsTheWholeMonth() {
+    @Test fun earlyInTheMonthOnlyWarnsWhenOver() {
+        // Day 1 still projects the whole month, but that's too thin to warn on.
         assertEquals(31_000_00L, projected(1_000_00, 1, 31))
-        assertEquals(Pace.ON_PACE_OVER, pace(1_000_00, 30_000_00, 1, 31))
-        assertEquals(Pace.FINE, pace(0, 30_000_00, 1, 31))
+        assertEquals(Pace.FINE, pace(1_000_00, 30_000_00, 1, 31))
+        assertEquals(Pace.FINE, pace(5_000_00, 30_000_00, 6, 31))
+        assertEquals(Pace.OVER, pace(30_000_01, 30_000_00, 1, 31))
+        assertEquals(Pace.ON_PACE_OVER, pace(7_000_00, 30_000_00, 7, 31))
     }
 
     @Test fun zeroBudgetNeverWarns() {

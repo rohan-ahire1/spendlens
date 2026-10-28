@@ -19,14 +19,17 @@ fun projected(spent: Long, day: Int, days: Int): Long {
     return spent * days / d
 }
 
+/** Before this day of the month one big payment swings the projection too far to warn on. */
+const val PACE_FROM_DAY = 7
+
 /**
- * Over once spent passes the budget; on pace to go over when the month-end projection passes it.
- * A budget of zero or less means no budget, so it never warns.
+ * Over once spent passes the budget; on pace to go over when the month-end projection passes it,
+ * from [PACE_FROM_DAY] on. A budget of zero or less means no budget, so it never warns.
  */
 fun pace(spent: Long, budget: Long, day: Int, days: Int): Pace = when {
     budget <= 0 -> Pace.FINE
     spent > budget -> Pace.OVER
-    projected(spent, day, days) > budget -> Pace.ON_PACE_OVER
+    day >= PACE_FROM_DAY && projected(spent, day, days) > budget -> Pace.ON_PACE_OVER
     else -> Pace.FINE
 }
 
