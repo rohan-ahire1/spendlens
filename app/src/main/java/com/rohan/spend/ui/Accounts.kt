@@ -61,6 +61,12 @@ import com.rohan.spend.data.inr
 import com.rohan.spend.data.groupIndian
 import androidx.compose.material3.CircularProgressIndicator
 import java.time.LocalDate
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.rohan.spend.bg.Notify
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,6 +115,9 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
 
         item { SectionTitle("Budgets", Modifier.rise(4)) }
         item { BudgetList(s, nav, { addBudget = true }, Modifier.rise(4)) }
+
+        item { SectionTitle("Reminders", Modifier.rise(4)) }
+        item { Reminders(s, vm, Modifier.rise(4)) }
 
         item { SectionTitle("Your data", Modifier.rise(4)) }
         item {
@@ -299,6 +308,37 @@ private fun Setting(title: String, sub: String?, onClick: (() -> Unit)? = null, 
         }
         Spacer(Modifier.width(10.dp))
         trailing()
+    }
+}
+
+/** Opt-in notifications. Turning one on asks for permission first; if that's refused it stays off and says why. */
+@Composable
+private fun Reminders(s: AppState, vm: AppViewModel, modifier: Modifier = Modifier) {
+    val ctx = LocalContext.current
+    // Which switch asked, so the answer turns on the right one. Saved in case the dialog outlives the screen.
+    var asking by rememberSaveable { mutableStateOf<String?>(null) }
+    val turnOn: (String) -> Unit = { which -> if (which == "summary") vm.setEveningSummary(true) }
+    val blocked = "Notifications are off for Spend Lens, so this stays off. Allow them in Android settings."
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val which = asking
+        asking = null
+        if (which != null && granted && Notify.allowed(ctx)) turnOn(which) else vm.say(blocked)
+    }
+    val toggle: (String, Boolean, (Boolean) -> Unit) -> Unit = { which, on, set ->
+        when {
+            !on || Notify.allowed(ctx) -> set(on)
+            Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED -> { asking = which; ask.launch(Manifest.permission.POST_NOTIFICATIONS) }
+            else -> vm.say(blocked)
+        }
+    }
+    val muted = !Notify.allowed(ctx)
+    FrostCard(modifier, pad = 6.dp) {
+        Column {
+            Setting("Evening summary", if (s.eveningSummary && muted) "Blocked in Android settings" else "Today's spend at 9 pm") {
+                FrostSwitch(s.eveningSummary) { toggle("summary", it, vm::setEveningSummary) }
+            }
+        }
     }
 }
 

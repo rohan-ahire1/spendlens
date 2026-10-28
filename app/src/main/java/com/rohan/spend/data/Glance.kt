@@ -1,5 +1,6 @@
 package com.rohan.spend.data
 
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZonedDateTime
 
@@ -22,6 +23,12 @@ data class MonthLeft(val spent: Long, val usual: Long, val today: Long) {
 /** The evening notification: a title and a line under it. */
 fun nudgeCopy(m: MonthLeft): Pair<String, String> =
     (if (m.today > 0) "You spent ${inr(m.today)} today" else "No spending today") to m.line
+
+const val SUMMARY_HOUR = 21
+
+/** The evening summary goes out once a day, from 9 pm to midnight. An alarm held up past midnight is dropped. */
+fun summaryDue(now: LocalDateTime, lastSent: String): Boolean =
+    now.hour >= SUMMARY_HOUR && lastSent != now.toLocalDate().toString()
 
 /** The next time the clock reads [at] after [now], in [now]'s zone. Gaps from clock changes resolve forward. */
 fun nextAt(now: ZonedDateTime, at: LocalTime): ZonedDateTime {

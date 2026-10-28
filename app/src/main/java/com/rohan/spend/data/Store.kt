@@ -45,6 +45,16 @@ class Prefs(context: Context) {
         get() = p.getStringSet("recapsClosed", emptySet())!!
         set(v) = p.edit().putStringSet("recapsClosed", v).apply()
 
+    /** The 9 pm notification with today's spend. Off until the user turns it on. */
+    var eveningSummary: Boolean
+        get() = p.getBoolean("eveningSummary", false)
+        set(v) = p.edit().putBoolean("eveningSummary", v).apply()
+
+    /** The last day the evening summary went out, as "2026-10-29", so a late or doubled alarm can't send two. */
+    var summarySent: String
+        get() = p.getString("summarySent", "")!!
+        set(v) = p.edit().putString("summarySent", v).apply()
+
     fun clear() = p.edit().clear().apply()
 
     // Tab and newline never appear in keys we write, so a flat string is enough.
