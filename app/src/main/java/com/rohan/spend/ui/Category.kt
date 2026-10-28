@@ -1,5 +1,6 @@
 package com.rohan.spend.ui
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -168,7 +169,7 @@ fun CategoryScreen(cat: Cat, s: AppState, nav: Nav) {
                 t.id == biggestId && list.size > 2 -> "Biggest"
                 else -> null
             }
-            Box(Modifier.padding(bottom = 8.dp).frost(22.dp).padding(horizontal = 14.dp)) {
+            Box(Modifier.animateItem().padding(bottom = 8.dp).frost(22.dp).padding(horizontal = 14.dp)) {
                 PayRow(t, cat, s.notes[t.id], tag, lead = { DateBlock(t.date(), span != Span.MONTH) }) { nav.push(Route.TxnDetail(t.id)) }
             }
         }
@@ -185,8 +186,9 @@ private fun DateBlock(d: LocalDate, showMonth: Boolean) {
 
 @Composable
 private fun PayeeTile(name: String, amount: String, on: Boolean, accent: Color, modifier: Modifier, onClick: (() -> Unit)?) {
+    val bg by animateColorAsState(if (on) accent else C.card, label = "payee")
     Column(
-        modifier.clip(RoundedCornerShape(14.dp)).background(if (on) accent else C.card)
+        modifier.clip(RoundedCornerShape(14.dp)).background(bg)
             .then(if (onClick != null) Modifier.press(onClick) else Modifier).padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Text(name, style = T.tiny.copy(color = if (on) Color.White else C.subtle, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, softWrap = false,
