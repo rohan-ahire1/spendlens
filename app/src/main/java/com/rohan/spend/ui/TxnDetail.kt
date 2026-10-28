@@ -97,6 +97,7 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
             }
         }
         TxnLinks(t, s, nav)
+        SplitCard(t, s, vm, nav)
 
         FrostCard(Modifier.rise(2).padding(top = 12.dp), pad = 6.dp) {
             Line("Always file ${t.payee.take(18)} here") { FrostSwitch(always) { vm.setAlways(t, it) } }

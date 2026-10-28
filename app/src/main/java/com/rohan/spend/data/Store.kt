@@ -48,6 +48,26 @@ class Prefs(context: Context) {
 
     private fun writeMap(key: String, m: Map<String, String>) =
         p.edit().putString(key, m.entries.joinToString("\n") { "${it.key.replace('\t', ' ')}\t${it.value.replace('\n', ' ')}" }).apply()
+
+    /** Payment id → how it's split, as "people,mine". */
+    var splits: Map<Long, Split>
+        get() = readMap("splits").mapNotNull { (k, v) ->
+            val id = k.toLongOrNull()
+            val n = v.substringBefore(',').toIntOrNull()
+            val mine = v.substringAfter(',').toLongOrNull()
+            if (id == null || n == null || mine == null) null else id to Split(n, mine)
+        }.toMap()
+        set(v) = writeMap("splits", v.entries.associate { it.key.toString() to "${it.value.people},${it.value.mine}" })
+
+    /** Credit id → the split payment it paid back. */
+    var paybacks: Map<Long, Long>
+        get() = readMap("paybacks").mapNotNull { (k, v) -> k.toLongOrNull()?.let { c -> v.toLongOrNull()?.let { c to it } } }.toMap()
+        set(v) = writeMap("paybacks", v.entries.associate { it.key.toString() to it.value.toString() })
+
+    /** "credit:payment" pairs the user said weren't a payback, so we stop asking. */
+    var notPaybacks: Set<String>
+        get() = p.getStringSet("notPaybacks", emptySet())!!.toSet()
+        set(v) = p.edit().putStringSet("notPaybacks", v).apply()
 }
 
 object SmsSource {

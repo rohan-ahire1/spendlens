@@ -79,3 +79,34 @@ object Transfers {
         return out
     }
 }
+
+/** A payment shared with others. [people] counts you too; 0 means you typed your own share. */
+data class Split(val people: Int, val mine: Long) {
+    /** What one other person owes: an even share, or all the rest when there's no head count. */
+    fun share(amount: Long): Long = (amount - mine) / maxOf(1, people - 1)
+
+    companion object {
+        fun even(amount: Long, people: Int) = Split(people, (amount.toDouble() / people).roundToLong())
+    }
+}
+
+object Splits {
+    const val DAYS = 30L
+
+    /** People round when they pay back, so within ₹10 or 5%, whichever is more. */
+    fun near(paid: Long, due: Long) = abs(paid - due) <= maxOf(10_00, due / 20)
+
+    /** What the others still owe: their part of the payment, less refunds and anything paid back. */
+    fun owed(amount: Long, split: Split, refunded: Long, paidBack: Long): Long =
+        (Refunds.net(amount, amount - split.mine, refunded) - paidBack).coerceAtLeast(0)
+
+    /** Credits in the [DAYS] after [t] that look like someone paying back one share, or all that's left. */
+    fun candidates(t: Txn, split: Split, owed: Long, credits: List<Txn>): List<Txn> {
+        if (owed <= 0) return emptyList()
+        val share = split.share(t.amount)
+        return credits.filter {
+            !it.debit && it.time > t.time && it.time <= t.time + DAYS * DAY_MS &&
+                (near(it.amount, share) || near(it.amount, owed)) && (it.amount <= owed || near(it.amount, owed))
+        }.sortedBy { it.time }
+    }
+}

@@ -76,6 +76,7 @@ fun InsightsScreen(s: AppState, nav: Nav) {
     ) {
         item { TabHeader("Insights", nav) }
         item { Box(Modifier.rise(0)) { KeptCard(st.income, st.avgLiving, if (s.excludeFamily) st.avgFamily else 0L, investing) } }
+        owedSection(s, nav)
         item { SectionTitle("Living cost by month", Modifier.rise(1)) }
         item {
             FrostCard(Modifier.rise(2)) { MonthBars(months, s.usual(), C.heat[3]) }

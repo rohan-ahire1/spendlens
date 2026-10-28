@@ -68,6 +68,33 @@ class LinksTest {
         assertEquals(2, Transfers.find(listOf(a, b, c)).size)
     }
 
+    @Test fun splitShareMath() {
+        val three = Split.even(1000_00, 3)
+        assertEquals(333_33L, three.mine)
+        assertEquals(333_33L, three.share(1000_00))
+        assertEquals(666_67L, Splits.owed(1000_00, three, 0, 0))
+        assertEquals(333_34L, Splits.owed(1000_00, three, 0, 333_33))
+        assertEquals(0L, Splits.owed(1000_00, three, 0, 700_00))
+        val mine = Split(0, 300_00)
+        assertEquals(700_00L, mine.share(1000_00))
+        // Half the bill refunded: the others owe half of their part.
+        assertEquals(350_00L, Splits.owed(1000_00, mine, 500_00, 0))
+        assertEquals(150_00L, Refunds.net(1000_00, mine.mine, 500_00))
+    }
+
+    @Test fun paybackHintsNearOneShareWithinThirtyDays() {
+        val dinner = t(3000_00, true, "Barbeque Nation", 0)
+        val sp = Split.even(dinner.amount, 4)
+        val arjun = t(750_00, false, "Arjun", 1 * day)
+        val rounded = t(740_00, false, "Neha", 2 * day)
+        val other = t(1200_00, false, "Salary", 2 * day)
+        val late = t(750_00, false, "Kabir", 31 * day)
+        val before = t(750_00, false, "Kabir", -1000)
+        val hints = Splits.candidates(dinner, sp, Splits.owed(dinner.amount, sp, 0, 0), listOf(arjun, rounded, other, late, before))
+        assertEquals(listOf(arjun.id, rounded.id), hints.map { it.id })
+        assertTrue(Splits.candidates(dinner, sp, 0, listOf(arjun)).isEmpty())
+    }
+
     @Test fun netScalesShareByRefund() {
         assertEquals(1000_00L, Refunds.net(1000_00, null, 0))
         assertEquals(600_00L, Refunds.net(1000_00, null, 400_00))

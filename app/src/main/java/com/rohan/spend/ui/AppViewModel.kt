@@ -15,6 +15,8 @@ import com.rohan.spend.data.Refunds
 import com.rohan.spend.data.Transfers
 import com.rohan.spend.data.SmsSource
 import com.rohan.spend.data.Snapshot
+import com.rohan.spend.data.Split
+import com.rohan.spend.data.Splits
 import com.rohan.spend.data.TxnCache
 import com.rohan.spend.data.ids
 import com.rohan.spend.data.Stats
@@ -54,6 +56,10 @@ data class AppState(
     val rescanning: Boolean = false,
     /** The date every screen treats as today. The VM moves it on at midnight and on resume. */
     val today: LocalDate = LocalDate.now(),
+    val splits: Map<Long, Split> = emptyMap(),
+    /** Credit id → the split payment it paid back. */
+    val paybacks: Map<Long, Long> = emptyMap(),
+    val notPaybacks: Set<String> = emptySet(),
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
@@ -72,9 +78,28 @@ data class AppState(
         refundOf.entries.groupBy({ it.value }, { byId.getValue(it.key) }).mapValues { e -> e.value.sortedBy { it.time } }
     }
     /** What a payment counts for in totals. Credits are left as they are. */
-    fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, null, refundsOf[t.id]?.sumOf { it.amount } ?: 0)
+    fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, splits[t.id]?.mine, refunded(t))
+    private fun refunded(t: Txn): Long = refundsOf[t.id]?.sumOf { it.amount } ?: 0
     /** Each side of a move between the user's own accounts → the other side. */
     val transfers: Map<Long, Long> by lazy { Transfers.find(txns) { Categorizer.auto(it) == Cat.REFUND } }
+
+    /** Split payment id → the paybacks confirmed for it, oldest first. */
+    val paidBack: Map<Long, List<Txn>> by lazy {
+        paybacks.entries.mapNotNull { (c, p) -> byId[c]?.let { p to it } }.groupBy({ it.first }, { it.second })
+            .mapValues { e -> e.value.sortedBy { it.time } }
+    }
+    fun owed(t: Txn): Long = splits[t.id]?.let { Splits.owed(t.amount, it, refunded(t), paidBack[t.id]?.sumOf { c -> c.amount } ?: 0) } ?: 0
+    /** Money in that looks like someone paying back their share of [t]. */
+    fun paybackHints(t: Txn): List<Txn> {
+        val sp = splits[t.id] ?: return emptyList()
+        val pool = visible.filter { !it.debit && catOf(it) == Cat.RECEIVED && it.id !in paybacks && "${it.id}:${t.id}" !in notPaybacks }
+        return Splits.candidates(t, sp, owed(t), pool)
+    }
+    /** Split payments someone still owes on, newest first, with what's owed. */
+    val owedToYou: List<Pair<Txn, Long>> by lazy {
+        splits.keys.mapNotNull { byId[it] }.filter { it.id !in hidden }.map { it to owed(it) }.filter { it.second > 0 }
+            .sortedByDescending { it.first.time }
+    }
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -105,6 +130,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         countCardBills = prefs.countCardBills,
         autoRefresh = prefs.autoRefresh,
         target = prefs.target,
+        splits = prefs.splits,
+        paybacks = prefs.paybacks,
+        notPaybacks = prefs.notPaybacks,
     )
 
     fun hasPermission() = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.READ_SMS) ==
@@ -251,5 +279,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun msToMidnight(): Long {
         val now = ZonedDateTime.now()
         return Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone)).toMillis() + 1000
+    }
+
+    /** Null removes the split; its paybacks go with it. */
+    fun setSplit(t: Txn, split: Split?) {
+        val s = _state.value
+        val splits = if (split == null) s.splits - t.id else s.splits + (t.id to split)
+        val paybacks = if (split == null) s.paybacks.filterValues { it != t.id } else s.paybacks
+        prefs.splits = splits
+        prefs.paybacks = paybacks
+        _state.update { it.copy(splits = splits, paybacks = paybacks) }
+    }
+
+    fun confirmPayback(credit: Txn, payment: Txn) {
+        val p = _state.value.paybacks + (credit.id to payment.id)
+        prefs.paybacks = p
+        _state.update { it.copy(paybacks = p) }
+    }
+
+    fun rejectPayback(credit: Txn, payment: Txn) {
+        val n = _state.value.notPaybacks + "${credit.id}:${payment.id}"
+        prefs.notPaybacks = n
+        _state.update { it.copy(notPaybacks = n) }
+    }
+
+    fun unlinkPayback(credit: Txn) {
+        val s = _state.value
+        val p = s.paybacks - credit.id
+        val n = s.paybacks[credit.id]?.let { s.notPaybacks + "${credit.id}:$it" } ?: s.notPaybacks
+        prefs.paybacks = p
+        prefs.notPaybacks = n
+        _state.update { it.copy(paybacks = p, notPaybacks = n) }
     }
 }
