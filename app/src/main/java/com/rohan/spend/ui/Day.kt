@@ -1,5 +1,14 @@
 package com.rohan.spend.ui
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -109,12 +118,20 @@ fun DayScreen(start: LocalDate, s: AppState, nav: Nav) {
         }
         item {
             FrostCard(Modifier.rise(3), pad = 14.dp) {
-                Column {
+                AnimatedContent(
+                    epoch, label = "day",
+                    transitionSpec = {
+                        val dir = if (targetState > initialState) 1 else -1
+                        (slideInHorizontally(tween(300)) { it / 4 * dir } + fadeIn(tween(300))) togetherWith fadeOut(tween(150)) using SizeTransform(clip = false)
+                    },
+                ) { _ ->
+                Column(Modifier.animateContentSize()) {
                     if (shown.isEmpty()) EmptyNote(if (day > today) "This day hasn't happened yet." else "Nothing here on this day.")
                     shown.forEach { t ->
                         val share = if (t.debit && spent > 0 && st.counts(t)) (t.amount * 100 / spent).let { if (it < 1) "<1% of day" else "$it% of day" } else null
                         PayRow(t, s.catOf(t), s.notes[t.id], share) { nav.push(Route.TxnDetail(t.id)) }
                     }
+                }
                 }
             }
         }
@@ -135,13 +152,15 @@ private fun Hours(modifier: Modifier, txns: List<Txn>) {
             }
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth().height(36.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
-                byHour.forEach { v ->
-                    val f = if (v == 0L) .12f else kotlin.math.sqrt(v.toFloat() / max).coerceAtLeast(.25f)
-                    val color = when {
-                        v == 0L -> C.noSpend
-                        v * 4 >= max -> C.heat[3]
-                        else -> C.heat[1]
-                    }
+                byHour.forEachIndexed { i, v ->
+                    val f = grown(if (v == 0L) .12f else kotlin.math.sqrt(v.toFloat() / max).coerceAtLeast(.25f), 80L + 15L * i).coerceAtLeast(.001f)
+                    val color by animateColorAsState(
+                        when {
+                            v == 0L -> C.noSpend
+                            v * 4 >= max -> C.heat[3]
+                            else -> C.heat[1]
+                        }, label = "hour",
+                    )
                     Box(Modifier.weight(1f).fillMaxHeight(f).clip(RoundedCornerShape(3.dp)).background(color))
                 }
             }
