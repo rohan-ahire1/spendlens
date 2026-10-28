@@ -4,6 +4,19 @@ An Android app that reads your bank SMS and shows where your money goes. Everyth
 
 ## Screens
 
+<p>
+  <img src="docs/screenshots/home.png" width="32%" alt="Home: month calendar and category tiles">
+  <img src="docs/screenshots/day.png" width="32%" alt="Day: payments on one date">
+  <img src="docs/screenshots/category.png" width="32%" alt="Category: every payment in Shopping">
+</p>
+<p>
+  <img src="docs/screenshots/activity.png" width="32%" alt="Activity: 14-day chart and list">
+  <img src="docs/screenshots/insights.png" width="32%" alt="Insights: how much you keep">
+  <img src="docs/screenshots/accounts.png" width="32%" alt="Accounts: split by account and settings">
+</p>
+
+The screenshots use made-up SMS, not real bank data.
+
 - Home is a calendar of the month. Each day is shaded by how much you spent, and you can step back through older months. Below it, the month's categories are laid out as tiles.
 - Day shows every payment on a date and the hour it happened.
 - Category lists every payment in a category for this month, 3 months, a year or all time. You can filter by who you paid.
@@ -40,4 +53,4 @@ Kotlin, Jetpack Compose and Material 3. There is no database: transactions are p
 
 ## Fonts
 
-IBM Plex Sans and Inter, both under the SIL Open Font License.
+IBM Plex Sans, under the SIL Open Font License.
