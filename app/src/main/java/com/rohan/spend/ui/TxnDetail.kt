@@ -34,7 +34,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -54,9 +54,9 @@ import java.time.format.DateTimeFormatter
 fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
     val cat = s.catOf(t)
     val always = s.payeeRules[t.payeeKey] != null
-    var picking by remember { mutableStateOf(false) }
-    var editingNote by remember { mutableStateOf(false) }
-    var showSms by remember { mutableStateOf(false) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    var editingNote by rememberSaveable { mutableStateOf(false) }
+    var showSms by rememberSaveable { mutableStateOf(false) }
     val hidden = t.id in s.hidden
     val (atPayee, visits) = s.stats.atPayeeThisMonth(t)
 
@@ -120,7 +120,7 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
 
     if (picking) {
         val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        var keep by remember { mutableStateOf(true) }
+        var keep by rememberSaveable { mutableStateOf(true) }
         ModalBottomSheet({ picking = false }, sheetState = sheet, containerColor = Color(0xFFF7F8FB)) {
             CategoryPicker(
                 current = cat,
@@ -134,7 +134,7 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
     }
 
     if (editingNote) {
-        var text by remember { mutableStateOf(s.notes[t.id] ?: "") }
+        var text by rememberSaveable { mutableStateOf(s.notes[t.id] ?: "") }
         AlertDialog(
             onDismissRequest = { editingNote = false },
             title = { Text("Note") },

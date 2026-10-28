@@ -43,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -340,7 +341,7 @@ private fun KeptCard(income: Long, living: Long, family: Long, investing: Long) 
 /** Monthly bars with a dashed "usual" line. Tap a bar to read it. */
 @Composable
 fun MonthBars(data: List<Pair<YearMonth, Long>>, usual: Long, color: Color) {
-    var sel by remember(data) { mutableIntStateOf(data.lastIndex) }
+    var sel by rememberSaveable(data.size) { mutableIntStateOf(data.lastIndex) }
     val grow = remember { Animatable(0f) }
     LaunchedEffect(Unit) { grow.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
     val max = (data.maxOfOrNull { it.second } ?: 0L).coerceAtLeast(usual).coerceAtLeast(1L)

@@ -41,7 +41,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,9 +58,9 @@ import java.time.LocalDate
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
-    var editTarget by remember { mutableStateOf(false) }
-    var showRules by remember { mutableStateOf(false) }
-    var confirmReset by remember { mutableStateOf(false) }
+    var editTarget by rememberSaveable { mutableStateOf(false) }
+    var showRules by rememberSaveable { mutableStateOf(false) }
+    var confirmReset by rememberSaveable { mutableStateOf(false) }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let(vm::exportCsv)
     }
@@ -119,7 +119,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     }
 
     if (editTarget) {
-        var text by remember { mutableStateOf(if (s.target > 0) (s.target / 100).toString() else "") }
+        var text by rememberSaveable { mutableStateOf(if (s.target > 0) (s.target / 100).toString() else "") }
         AlertDialog(
             onDismissRequest = { editTarget = false },
             title = { Text("Monthly target") },
