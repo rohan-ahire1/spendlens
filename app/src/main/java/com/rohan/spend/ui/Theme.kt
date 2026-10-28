@@ -12,6 +12,7 @@ import androidx.compose.material.icons.rounded.DirectionsSubway
 import androidx.compose.material.icons.rounded.FamilyRestroom
 import androidx.compose.material.icons.rounded.Flight
 import androidx.compose.material.icons.rounded.LocalAtm
+import androidx.compose.material.icons.rounded.LocalGasStation
 import androidx.compose.material.icons.rounded.LocalGroceryStore
 import androidx.compose.material.icons.rounded.LocalPharmacy
 import androidx.compose.material.icons.rounded.Movie
@@ -88,6 +89,7 @@ fun Cat.style(): CatStyle = when (this) {
     Cat.FOOD_DELIVERY -> CatStyle(Icons.Rounded.DeliveryDining, Color(0xFFC4501F), Color(0xFFFFE9E0))
     Cat.EATING_OUT -> CatStyle(Icons.Rounded.Restaurant, Color(0xFFB8336A), Color(0xFFFFE4EF))
     Cat.COMMUTE -> CatStyle(Icons.Rounded.DirectionsSubway, Color(0xFF1F6FC4), Color(0xFFDEF0FF))
+    Cat.FUEL -> CatStyle(Icons.Rounded.LocalGasStation, Color(0xFFB5541A), Color(0xFFFFEBDD))
     Cat.SUBSCRIPTIONS -> CatStyle(Icons.Rounded.CreditCard, Color(0xFF4B3FD6), Color(0xFFE8E5FF))
     Cat.SHOPPING -> CatStyle(Icons.Rounded.ShoppingBag, Color(0xFF7A3FC4), Color(0xFFF1E5FF))
     Cat.BILLS -> CatStyle(Icons.Rounded.Bolt, Color(0xFF8A6A00), Color(0xFFFFF6D6))
