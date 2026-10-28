@@ -103,6 +103,13 @@ class Stats(
         return (todays.ifEmpty { txns.take(limit) }).take(limit)
     }
 
+    /** Counted spend per day of the current month. */
+    val daily: Map<LocalDate, Long> by lazy {
+        txns.filter { counts(it) && it.month() == thisMonth }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
+    }
+
+    fun onDay(d: LocalDate): List<Txn> = txns.filter { it.date() == d }
+
     val hasToday: Boolean get() = txns.any { it.date() == today }
 
     /** Salary per month averaged over months that had one, last 12 months. */
