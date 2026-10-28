@@ -1,26 +1,29 @@
 package com.rohan.spend.ui
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,29 +32,37 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.rohan.spend.data.CatTotal
 import com.rohan.spend.data.Period
 import com.rohan.spend.data.inr
+import com.rohan.spend.data.inrShort
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import java.time.format.TextStyle as JTextStyle
+import java.util.Locale
 
 @Composable
 fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
-    var period by rememberSaveable { mutableStateOf(Period.MONTH) }
     val st = s.stats
-    val spent = st.spent(period)
-    val usual = if (period == Period.MONTH) s.usual() else st.usual(period)
-    val cats = st.byCat(period)
+    val today = LocalDate.now()
+    var selEpoch by rememberSaveable { mutableStateOf(today.toEpochDay()) }
+    val sel = LocalDate.ofEpochDay(selEpoch)
+    val spent = st.spent(Period.MONTH)
+    val usual = s.usual()
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
     ) {
         item {
             Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM")), style = T.label)
-                    Text("Spend", style = T.title)
-                }
+                Text(today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM")), style = T.label, modifier = Modifier.weight(1f))
                 Crossfade(s.refreshing, label = "refresh") { busy ->
                     if (busy) Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(Modifier.size(20.dp), color = C.ink, strokeWidth = 2.dp)
@@ -59,49 +70,22 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 }
             }
         }
+        item { Headline(Modifier.rise(0), today, spent, usual) }
         item {
-            Row(Modifier.rise(0).padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Period.entries.forEach { p -> Chip(p.label, p == period, { period = p }) }
-            }
-        }
-        item { Box(Modifier.rise(1).padding(top = 8.dp)) { SpentCard(period, spent, usual, st.daysLeft) } }
-        item {
-            SectionTitle("Where it went", Modifier.rise(2)) {
-                Text("Insights", style = T.label.copy(color = C.tint), modifier = Modifier.press({ nav.tab(Tab.INSIGHTS) }))
-            }
+            Calendar(Modifier.rise(1).padding(top = 18.dp), today, st.daily, usual / today.lengthOfMonth(), sel) { selEpoch = it.toEpochDay() }
         }
         item {
-            FrostCard(Modifier.rise(3), pad = 6.dp) {
+            Treemap(Modifier.rise(2).padding(top = 10.dp), st.byCat(Period.MONTH), { nav.push(Route.Category(it)) }, { nav.tab(Tab.INSIGHTS) })
+        }
+        item {
+            val dayTxns = st.onDay(sel)
+            SectionTitle(dayLabel(sel), Modifier.rise(3)) {
+                Text(inr(st.daily[sel] ?: 0L), style = T.num.copy(color = C.muted))
+            }
+            FrostCard(Modifier.rise(4), pad = 14.dp) {
                 Column {
-                    if (cats.isEmpty()) EmptyNote("Nothing spent yet in this ${period.label.lowercase()}.")
-                    val top = cats.firstOrNull()?.total ?: 1L
-                    cats.take(6).forEach { c ->
-                        Row(
-                            Modifier.fillMaxWidth().press({ nav.push(Route.Category(c.cat)) }).padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            CatIcon(c.cat, 36.dp)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Row {
-                                    Text(c.cat.label, style = T.body, modifier = Modifier.weight(1f))
-                                    Text(inr(c.total), style = T.num)
-                                }
-                                Spacer(Modifier.height(6.dp))
-                                GrowBar(c.total.toFloat() / top, c.cat.style().fg, height = 4.dp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item { SectionTitle(if (st.hasToday) "Today" else "Recent", Modifier.rise(4)) }
-        item {
-            FrostCard(Modifier.rise(5), pad = 14.dp) {
-                Column {
-                    val recent = st.recent()
-                    if (recent.isEmpty()) EmptyNote("No transactions yet.")
-                    recent.forEach { t -> TxnRow(t, s.catOf(t), s.notes[t.id], { nav.push(Route.TxnDetail(t.id)) }, showDay = !st.hasToday) }
+                    if (dayTxns.isEmpty()) EmptyNote(if (sel.isAfter(today)) "This day hasn't happened yet." else "Nothing spent on this day.")
+                    dayTxns.forEach { t -> TxnRow(t, s.catOf(t), s.notes[t.id], { nav.push(Route.TxnDetail(t.id)) }) }
                 }
             }
         }
@@ -109,28 +93,137 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
 }
 
 @Composable
-private fun SpentCard(period: Period, spent: Long, usual: Long, daysLeft: Int) {
-    FrostCard(radius = 28.dp, pad = 22.dp) {
-        Column {
-            Text("Spent this ${period.label.lowercase()}", style = T.label)
-            Spacer(Modifier.height(6.dp))
-            CountUp(spent, T.hero)
-            Spacer(Modifier.height(16.dp))
-            if (usual > 0) {
-                val ratio = spent.toFloat() / usual
-                GrowBar(ratio, if (ratio > 1f) C.peach else C.ink, height = 8.dp)
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("Usual ${inr(usual)}", style = T.tiny, modifier = Modifier.weight(1f))
-                    val left = usual - spent
-                    AnimatedVisibility(true, enter = fadeIn(), exit = fadeOut()) {
-                        if (left >= 0) Pill("${inr(left)} left" + if (period == Period.MONTH) " · $daysLeft days" else "", C.green, C.green.copy(alpha = .1f))
-                        else Pill("${inr(-left)} over", C.warnInk, C.warnBg)
+private fun Headline(modifier: Modifier, today: LocalDate, spent: Long, usual: Long) {
+    Row(modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Bottom) {
+        Column(Modifier.weight(1f)) {
+            Text("${today.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())} so far", style = T.label)
+            CountUp(spent, T.display)
+        }
+        if (usual > 0) Column(Modifier.padding(bottom = 6.dp), horizontalAlignment = Alignment.End) {
+            val pct = ((spent - usual) * 100 / usual).toInt()
+            Text(
+                (if (pct >= 0) "+" else "−") + "${kotlin.math.abs(pct)}%",
+                style = T.label.copy(color = if (pct > 0) C.warnInk else C.green, fontWeight = FontWeight.SemiBold),
+            )
+            Text("vs usual ${inr(usual)}", style = T.tiny)
+        }
+    }
+}
+
+/** Heat bucket for a day's spend against an ordinary day's share of the usual month. */
+private fun level(amount: Long, perDay: Long): Int = when {
+    perDay <= 0 -> if (amount > 0) 1 else 0
+    amount < perDay / 2 -> 0
+    amount < perDay -> 1
+    amount < perDay * 3 -> 2
+    else -> 3
+}
+
+/** 1.7k, 25k, 30: tight enough for a calendar cell. */
+private fun short(paise: Long): String {
+    val r = paise / 100
+    return when {
+        r >= 10_000 -> "${r / 1000}k"
+        r >= 1_000 -> String.format(Locale.US, "%.1fk", r / 1000.0).replace(".0k", "k")
+        else -> "$r"
+    }
+}
+
+@Composable
+private fun Calendar(modifier: Modifier, today: LocalDate, daily: Map<LocalDate, Long>, perDay: Long, sel: LocalDate, onPick: (LocalDate) -> Unit) {
+    val first = today.withDayOfMonth(1)
+    val offset = first.dayOfWeek.value - 1
+    val weeks = (offset + today.lengthOfMonth() + 6) / 7
+    val gap = 6.dp
+    FrostCard(modifier, pad = 14.dp) {
+        Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                listOf("M", "T", "W", "T", "F", "S", "S").forEach {
+                    Text(it, style = T.tiny.copy(color = C.faint, fontSize = 11.sp), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                }
+            }
+            repeat(weeks) { w ->
+                Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
+                    repeat(7) { i ->
+                        val n = w * 7 + i - offset + 1
+                        if (n < 1 || n > today.lengthOfMonth()) Spacer(Modifier.weight(1f))
+                        else {
+                            val d = first.withDayOfMonth(n)
+                            DayCell(d, daily[d] ?: 0L, perDay, d.isAfter(today), d == sel) { onPick(d) }
+                        }
                     }
                 }
-            } else {
-                Text("Your usual will show after a full month of data.", style = T.tiny)
+            }
+            Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Less", style = T.tiny)
+                C.heat.forEach { Box(Modifier.size(14.dp).clip(RoundedCornerShape(4.dp)).background(it)) }
+                Text("More", style = T.tiny)
+                Spacer(Modifier.weight(1f))
+                Text("Tap a day", style = T.tiny)
             }
         }
+    }
+}
+
+@Composable
+private fun RowScope.DayCell(d: LocalDate, amount: Long, perDay: Long, future: Boolean, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(10.dp)
+    val lvl = level(amount, perDay)
+    val bg = if (future) C.bg else if (amount == 0L) C.noSpend else C.heat[lvl]
+    val fg = if (future) C.faint else if (amount > 0 && lvl >= 2) Color.White else C.ink
+    Column(
+        Modifier.weight(1f).aspectRatio(1f).clip(shape).background(bg)
+            .then(if (selected) Modifier.border(2.dp, C.today, shape) else Modifier)
+            .press(onClick).padding(horizontal = 5.dp, vertical = 4.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text("${d.dayOfMonth}", style = T.tiny.copy(color = fg, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp))
+        if (!future && amount > 0) Text(
+            short(amount), style = T.tiny.copy(color = fg, fontSize = 9.sp, lineHeight = 10.sp, fontFeatureSettings = "tnum"),
+            textAlign = TextAlign.End, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun Treemap(modifier: Modifier, cats: List<CatTotal>, open: (com.rohan.spend.data.Cat) -> Unit, more: () -> Unit) {
+    if (cats.isEmpty()) return
+    val gap = 6.dp
+    Row(modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(gap)) {
+        Tile(cats[0], Modifier.weight(1f).fillMaxHeight(), 18.dp, big = true) { open(cats[0].cat) }
+        Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
+            cats.getOrNull(1)?.let { c -> Tile(c, Modifier.weight(1.4f).fillMaxWidth(), 18.dp) { open(c.cat) } }
+            Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+                cats.drop(2).take(2).forEach { c -> Tile(c, Modifier.weight(1f).fillMaxHeight(), 14.dp, small = true) { open(c.cat) } }
+                val rest = cats.drop(4).sumOf { it.total }
+                if (rest > 0) SmallTile("More", inrShort(rest).removePrefix("₹"), Color(0xFFE4E5EC), C.ink, Modifier.weight(1f).fillMaxHeight(), more)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Tile(c: CatTotal, modifier: Modifier, radius: Dp, big: Boolean = false, small: Boolean = false, onClick: () -> Unit) {
+    val style = c.cat.style()
+    if (small) return SmallTile(null, inrShort(c.total).removePrefix("₹"), style.bg, style.fg, modifier, onClick) {
+        Icon(style.icon, c.cat.label, tint = style.fg, modifier = Modifier.size(16.dp))
+    }
+    Column(
+        modifier.clip(RoundedCornerShape(radius)).background(style.bg).press(onClick).padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(c.cat.label, style = T.label.copy(color = style.fg), maxLines = 1)
+        Text(inr(c.total), style = (if (big) T.h2 else T.h3.copy(fontWeight = FontWeight.Bold)).copy(color = C.ink, fontFeatureSettings = "tnum"), maxLines = 1)
+    }
+}
+
+@Composable
+private fun SmallTile(label: String?, amount: String, bg: Color, fg: Color, modifier: Modifier, onClick: () -> Unit, icon: @Composable () -> Unit = {}) {
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).background(bg).press(onClick).padding(8.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        if (label != null) Text(label, style = T.tiny.copy(color = fg, fontSize = 11.sp), maxLines = 1, softWrap = false) else icon()
+        Text(amount, style = T.tiny.copy(color = C.ink, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"), maxLines = 1)
     }
 }
