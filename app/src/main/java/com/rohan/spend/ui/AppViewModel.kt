@@ -43,8 +43,10 @@ data class AppState(
     val target: Long = 0,
     val refreshing: Boolean = false,
 ) {
-    fun catOf(t: Txn): Cat = txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Categorizer.auto(t)
-    val visible: List<Txn> get() = txns.filter { it.id !in hidden }
+    // Every screen asks for categories many times over; run the regexes once per transaction.
+    private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
+    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) { txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Categorizer.auto(t) }
+    val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
     val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills)) }
     fun usual(): Long = if (target > 0) target else stats.usualMonth
 }
