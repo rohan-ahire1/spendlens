@@ -18,10 +18,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -63,6 +65,8 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         item {
             Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(today.format(DateTimeFormatter.ofPattern("EEEE, d MMMM")), style = T.label, modifier = Modifier.weight(1f))
+                RoundButton(Icons.Rounded.Search, "Search", { nav.push(Route.Search) })
+                Spacer(Modifier.width(8.dp))
                 Crossfade(s.refreshing, label = "refresh") { busy ->
                     if (busy) Box(Modifier.size(42.dp), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(Modifier.size(20.dp), color = C.ink, strokeWidth = 2.dp)
