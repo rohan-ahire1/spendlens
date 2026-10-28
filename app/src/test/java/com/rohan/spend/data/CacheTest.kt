@@ -14,18 +14,18 @@ class CacheTest {
 
     @Test fun roundTrip() {
         val s = Snapshot(
-            42,
+            42, 2000,
             listOf(
                 txn(2, 2000, balance = 1_20_966_50, body = "Sent ₹250 to चाय\nwala\tRef 1"),
                 txn(1, 1000, account = null),
             ),
         )
         assertEquals(s, TxnCache.read(ByteArrayInputStream(bytes(s))))
-        assertEquals(Snapshot(0, emptyList()), TxnCache.read(ByteArrayInputStream(bytes(Snapshot(0, emptyList())))))
+        assertEquals(Snapshot(0, 0, emptyList()), TxnCache.read(ByteArrayInputStream(bytes(Snapshot(0, 0, emptyList())))))
     }
 
     @Test fun rejectsDamagedOrOld() {
-        val b = bytes(Snapshot(5, listOf(txn(1, 1000))))
+        val b = bytes(Snapshot(5, 1000, listOf(txn(1, 1000))))
         assertNull(TxnCache.read(ByteArrayInputStream(b.copyOf(b.size - 3))))
         assertNull(TxnCache.read(ByteArrayInputStream(b + 0)))
         assertNull(TxnCache.read(ByteArrayInputStream(ByteArray(0))))
@@ -36,7 +36,27 @@ class CacheTest {
     @Test fun mergeDropsDeletedAndKeepsNewestFirst() {
         val cached = listOf(txn(3, 3000), txn(2, 2000), txn(1, 1000))
         val fresh = listOf(txn(5, 5000), txn(3, 3000))
-        val out = TxnCache.merge(cached, alive = setOf(1, 3, 5), fresh = fresh)
+        val out = TxnCache.merge(cached, alive = mapOf(1L to 1000L, 3L to 3000L, 5L to 5000L), fresh = fresh)
         assertEquals(listOf(5L, 3L, 1L), out.map { it.id })
+    }
+
+    @Test fun reusedIdReplacesTheOldPayment() {
+        // SMS 3 was deleted and the next message got _ID 3 too.
+        val cached = listOf(txn(3, 3000), txn(1, 1000))
+        val fresh = listOf(txn(3, 9000).copy(amount = 99_00))
+        val out = TxnCache.merge(cached, alive = mapOf(1L to 1000L, 3L to 9000L), fresh = fresh)
+        assertEquals(listOf(3L to 99_00L, 1L to 10_00L), out.map { it.id to it.amount })
+    }
+
+    @Test fun reusedIdByANonPaymentDropsTheOldPayment() {
+        val cached = listOf(txn(3, 3000), txn(1, 1000))
+        val out = TxnCache.merge(cached, alive = mapOf(1L to 1000L, 3L to 9000L), fresh = emptyList())
+        assertEquals(listOf(1L), out.map { it.id })
+    }
+
+    @Test fun rereadMessagesAreNotDoubled() {
+        val cached = listOf(txn(2, 2000))
+        val out = TxnCache.merge(cached, alive = mapOf(2L to 2000L), fresh = listOf(txn(2, 2000), txn(2, 2000)))
+        assertEquals(listOf(2L), out.map { it.id })
     }
 }

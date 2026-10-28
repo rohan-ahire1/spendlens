@@ -29,7 +29,7 @@ object Headless {
         var snap = TxnCache.load(file) ?: return null
         val prefs = Prefs(context)
         if (read && prefs.autoRefresh && canRead(context)) {
-            runCatching { SmsSource.sync(context, snap.maxId, snap.txns, wholeOk = false) }.getOrNull()?.let {
+            runCatching { SmsSource.sync(context, snap.maxId, snap.lastDate, snap.txns, wholeOk = false) }.getOrNull()?.let {
                 runCatching { TxnCache.save(file, it) }
                 snap = it
             }

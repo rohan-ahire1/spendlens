@@ -347,9 +347,10 @@ private fun Reminders(s: AppState, vm: AppViewModel, modifier: Modifier = Modifi
 
 @Composable
 private fun RescanRow(s: AppState, vm: AppViewModel) {
+    val p by vm.progress.collectAsStateWithLifecycle()
     val sub = when {
         !s.rescanning -> "Start fresh if something looks missing"
-        s.total > 0 -> "Reading ${groupIndian(s.done.toLong())} of ${groupIndian(s.total.toLong())}"
+        p.total > 0 -> "Reading ${groupIndian(p.done.toLong())} of ${groupIndian(p.total.toLong())}"
         else -> "Reading…"
     }
     Setting("Rescan all messages", sub, onClick = if (s.rescanning) null else vm::fullRescan) {

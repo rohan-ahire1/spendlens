@@ -131,7 +131,7 @@ private fun Root(vm: AppViewModel, s: AppState, onAskPermission: () -> Unit) {
         ) { stage ->
             when (stage) {
                 Stage.NEEDS_PERMISSION -> OnboardingScreen(onAskPermission)
-                Stage.SCANNING -> ScanScreen(s)
+                Stage.SCANNING -> ScanScreen(vm.progress.collectAsStateWithLifecycle().value)
                 Stage.READY -> CompositionLocalProvider(LocalToday provides s.today) { Main(vm, s) }
             }
         }

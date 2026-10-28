@@ -43,11 +43,11 @@ import java.time.ZonedDateTime
 
 enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
 
+/** How far a scan has got. Kept out of [AppState] so ticking it doesn't rebuild every screen's numbers. */
+data class ScanProgress(val done: Int = 0, val total: Int = 0, val justFound: List<Txn> = emptyList())
+
 data class AppState(
     val stage: Stage = Stage.NEEDS_PERMISSION,
-    val done: Int = 0,
-    val total: Int = 0,
-    val justFound: List<Txn> = emptyList(),
     val foundCount: Int = 0,
     val txns: List<Txn> = emptyList(),
     val payeeRules: Map<String, Cat> = emptyMap(),
@@ -137,10 +137,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = Prefs(app)
     private val _state = MutableStateFlow(AppState().withPrefs(prefs))
     val state: StateFlow<AppState> = _state
+    private val _progress = MutableStateFlow(ScanProgress())
+    val progress: StateFlow<ScanProgress> = _progress
     private var scanJob: Job? = null
     private val cacheFile = TxnCache.file(app)
     /** Highest SMS _ID already read, or -1 when there's no cache and everything must be read. */
     private var maxSmsId = -1L
+    private var lastSmsDate = 0L
 
     init {
         if (hasPermission()) start()
@@ -179,6 +182,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             // A small file read on the main thread, so the first frame is the real app, not a flash of the scan screen.
             TxnCache.load(cacheFile)?.let { c ->
                 maxSmsId = c.maxId
+                lastSmsDate = c.lastDate
                 _state.update { it.copy(stage = Stage.READY, txns = c.txns, foundCount = c.txns.size) }
             }
         }
@@ -189,16 +193,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (scanJob?.isActive == true) return
         val showScreen = firstTime && _state.value.txns.isEmpty()
         val known = if (full) -1L else maxSmsId
+        _progress.value = ScanProgress()
         _state.update { it.copy(stage = if (showScreen) Stage.SCANNING else it.stage, refreshing = !showScreen, rescanning = full) }
         scanJob = viewModelScope.launch {
             val started = System.currentTimeMillis()
             val app = getApplication<Application>()
             val snap = withContext(Dispatchers.IO) {
-                SmsSource.sync(app, known, _state.value.txns) { done, total, found ->
-                    _state.update { it.copy(done = done, total = total, justFound = found.reversed()) }
+                SmsSource.sync(app, known, lastSmsDate, _state.value.txns) { done, total, found ->
+                    _progress.value = ScanProgress(done, total, found.reversed())
                 }!!.also { runCatching { TxnCache.save(cacheFile, it) } }
             }
             maxSmsId = snap.maxId
+            lastSmsDate = snap.lastDate
             _state.update { it.copy(foundCount = snap.txns.size) }
             // Let the scan animation land rather than flashing past.
             if (showScreen) delay((1800 - (System.currentTimeMillis() - started)).coerceAtLeast(0))

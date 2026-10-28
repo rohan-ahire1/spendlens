@@ -8,13 +8,16 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 
-/** What we've read so far: the transactions and the highest SMS _ID already looked at. */
-data class Snapshot(val maxId: Long, val txns: List<Txn>)
+/**
+ * What we've read so far: the transactions, the highest SMS _ID already looked at and the newest SMS date.
+ * The date matters because the inbox can hand a deleted message's _ID to the next one that arrives.
+ */
+data class Snapshot(val maxId: Long, val lastDate: Long, val txns: List<Txn>)
 
 /** Parsed transactions kept on the phone so a cold start doesn't reread 18 months of SMS. */
 object TxnCache {
     /** Bump whenever SmsParser or Txn changes, so old caches are thrown away and the inbox is read again. */
-    const val VERSION = 1
+    const val VERSION = 2
     private const val MAGIC = 0x5350454E // "SPEN"
 
     fun write(out: OutputStream, s: Snapshot) {
@@ -22,6 +25,7 @@ object TxnCache {
         d.writeInt(MAGIC)
         d.writeInt(VERSION)
         d.writeLong(s.maxId)
+        d.writeLong(s.lastDate)
         d.writeInt(s.txns.size)
         for (t in s.txns) {
             d.writeLong(t.id)
@@ -45,6 +49,7 @@ object TxnCache {
         val d = DataInputStream(inp.buffered())
         if (d.readInt() != MAGIC || d.readInt() != VERSION) return null
         val maxId = d.readLong()
+        val lastDate = d.readLong()
         val n = d.readInt()
         if (n < 0) return null
         val l = ArrayList<Txn>(minOf(n, 100_000))
@@ -57,7 +62,7 @@ object TxnCache {
             )
         }
         if (d.read() != -1) return null
-        Snapshot(maxId, l)
+        Snapshot(maxId, lastDate, l)
     }.getOrNull()
 
     /** The one cache file, shared by the app and the widget and alarms. */
@@ -75,13 +80,18 @@ object TxnCache {
         if (!tmp.renameTo(f)) { f.delete(); tmp.renameTo(f) }
     }
 
+    /** Messages this close before the newest one seen are read again, in case the clock or the inbox shuffled. */
+    const val SLACK = 10 * 60 * 1000L
+
     /**
      * Cached transactions whose SMS still exist, plus the newly read ones, newest first.
-     * [alive] is every SMS _ID in the scan window, so deleted or aged-out messages drop off.
+     * [alive] is every SMS _ID in the scan window with its date, so deleted or aged-out messages drop off,
+     * and so does a cached one whose _ID now belongs to a different, later message.
      */
-    fun merge(cached: List<Txn>, alive: Set<Long>, fresh: List<Txn>): List<Txn> {
-        val ids = fresh.mapTo(HashSet()) { it.id }
-        return (fresh + cached.filter { it.id in alive && it.id !in ids }).sortedByDescending { it.time }
+    fun merge(cached: List<Txn>, alive: Map<Long, Long>, fresh: List<Txn>): List<Txn> {
+        val f = fresh.distinctBy { it.id }
+        val ids = f.mapTo(HashSet()) { it.id }
+        return (f + cached.filter { alive[it.id] == it.time && it.id !in ids }).sortedByDescending { it.time }
     }
 
     private fun DataOutputStream.str(s: String?) {
@@ -100,30 +110,32 @@ object TxnCache {
 }
 
 /**
- * Reads SMS newer than [known] into [cached]. When there's no cache ([known] < 0) or the inbox was
+ * Reads SMS newer than [known] or dated from [lastDate] on into [cached]. When there's no cache ([known] < 0) or the inbox was
  * rebuilt (IDs went backwards) the whole inbox has to be read; with [wholeOk] false that returns null instead.
  */
 fun SmsSource.sync(
-    context: Context, known: Long, cached: List<Txn>, wholeOk: Boolean = true,
+    context: Context, known: Long, lastDate: Long, cached: List<Txn>, wholeOk: Boolean = true,
     onProgress: (done: Int, total: Int, found: List<Txn>) -> Unit = { _, _, _ -> },
 ): Snapshot? {
     // Taken before reading, so a message that lands mid-scan is picked up next time rather than skipped.
     val alive = ids(context)
-    val top = alive.maxOrNull() ?: 0L
+    val top = alive.keys.maxOrNull() ?: 0L
+    val topDate = alive.values.maxOrNull() ?: 0L
     val whole = known < 0 || top < known
     if (whole && !wholeOk) return null
-    val read = read(context, afterId = if (whole) 0 else known, onProgress = onProgress)
-    val txns = if (whole) read else TxnCache.merge(cached, alive, read)
-    return Snapshot(if (whole) top else maxOf(top, known), txns)
+    // A reused _ID isn't above [known], but its message is newer than anything read before.
+    val read = read(context, afterId = if (whole) 0 else known, fromDate = if (whole) Long.MAX_VALUE else lastDate - TxnCache.SLACK, onProgress = onProgress)
+    val txns = if (whole) read.distinctBy { it.id } else TxnCache.merge(cached, alive, read)
+    return Snapshot(if (whole) top else maxOf(top, known), topDate, txns)
 }
 
-/** Every SMS _ID in the inbox from the last [monthsBack] months. Cheap: no bodies are read. */
-fun SmsSource.ids(context: Context, monthsBack: Long = 18): Set<Long> {
+/** Every SMS _ID in the inbox from the last [monthsBack] months, with its date. Cheap: no bodies are read. */
+fun SmsSource.ids(context: Context, monthsBack: Long = 18): Map<Long, Long> {
     val since = System.currentTimeMillis() - monthsBack * 31L * 24 * 3600 * 1000
-    val out = HashSet<Long>()
+    val out = HashMap<Long, Long>()
     context.contentResolver.query(
-        Telephony.Sms.Inbox.CONTENT_URI, arrayOf(Telephony.Sms._ID),
+        Telephony.Sms.Inbox.CONTENT_URI, arrayOf(Telephony.Sms._ID, Telephony.Sms.DATE),
         "${Telephony.Sms.DATE} > ?", arrayOf(since.toString()), null,
-    )?.use { c -> while (c.moveToNext()) out += c.getLong(0) }
+    )?.use { c -> while (c.moveToNext()) out[c.getLong(0)] = c.getLong(1) }
     return out
 }

@@ -101,15 +101,15 @@ class Prefs(context: Context) {
 }
 
 object SmsSource {
-    /** Reads the inbox newest first and reports progress as it goes. [afterId] skips SMS already read. */
-    fun read(context: Context, monthsBack: Long = 18, afterId: Long = 0, onProgress: (done: Int, total: Int, found: List<Txn>) -> Unit): List<Txn> {
+    /** Reads the inbox newest first and reports progress as it goes. Only SMS above [afterId] or dated from [fromDate] on are read. */
+    fun read(context: Context, monthsBack: Long = 18, afterId: Long = 0, fromDate: Long = Long.MAX_VALUE, onProgress: (done: Int, total: Int, found: List<Txn>) -> Unit): List<Txn> {
         val since = System.currentTimeMillis() - monthsBack * 31L * 24 * 3600 * 1000
         val out = ArrayList<Txn>()
         context.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
             arrayOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
-            "${Telephony.Sms.DATE} > ? AND ${Telephony.Sms._ID} > ?",
-            arrayOf(since.toString(), afterId.toString()),
+            "${Telephony.Sms.DATE} > ? AND (${Telephony.Sms._ID} > ? OR ${Telephony.Sms.DATE} >= ?)",
+            arrayOf(since.toString(), afterId.toString(), fromDate.toString()),
             "${Telephony.Sms.DATE} DESC",
         )?.use { c ->
             val total = c.count

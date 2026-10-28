@@ -105,7 +105,7 @@ private fun Point(icon: ImageVector, title: String, sub: String) {
 }
 
 @Composable
-fun ScanScreen(s: AppState) {
+fun ScanScreen(s: ScanProgress) {
     val target = if (s.total == 0) 0f else s.done.toFloat() / s.total
     val progress by animateFloatAsState(target, tween(400, easing = FastOutSlowInEasing), label = "scan")
     val spin = rememberInfiniteTransition(label = "spin")
