@@ -73,7 +73,7 @@ fun ActivityScreen(s: AppState, nav: Nav) {
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
     ) {
         item {
-            Text("Activity", style = T.title, modifier = Modifier.padding(vertical = 10.dp))
+            TabHeader("Activity", nav)
         }
         item {
             Fortnight(Modifier.rise(0).padding(bottom = 14.dp), days, s.usual() / 30, day) { d -> dayEpoch = if (d == day) null else d.toEpochDay() }

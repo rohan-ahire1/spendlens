@@ -61,7 +61,7 @@ fun InsightsScreen(s: AppState, nav: Nav) {
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
     ) {
-        item { Text("Insights", style = T.title, modifier = Modifier.padding(vertical = 10.dp)) }
+        item { TabHeader("Insights", nav) }
         item { Box(Modifier.rise(0)) { KeptCard(st.income, st.avgLiving, if (s.excludeFamily) st.avgFamily else 0L, investing) } }
         item { SectionTitle("Living cost by month", Modifier.rise(1)) }
         item {

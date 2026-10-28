@@ -54,7 +54,7 @@ import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountsScreen(s: AppState, vm: AppViewModel) {
+fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     var editTarget by remember { mutableStateOf(false) }
     var showRules by remember { mutableStateOf(false) }
     var confirmReset by remember { mutableStateOf(false) }
@@ -65,7 +65,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel) {
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
     ) {
-        item { Text("Accounts", style = T.title, modifier = Modifier.padding(vertical = 10.dp)) }
+        item { TabHeader("Accounts", nav) }
         item {
             val accounts = s.stats.accounts
             if (accounts.isEmpty()) EmptyNote("No accounts found in your messages yet.")

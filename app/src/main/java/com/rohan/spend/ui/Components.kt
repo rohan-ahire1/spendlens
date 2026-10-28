@@ -209,6 +209,15 @@ fun TopBar(title: String, onBack: () -> Unit, trailing: (@Composable () -> Unit)
     }
 }
 
+/** A tab's big title with the search button beside it. */
+@Composable
+fun TabHeader(title: String, nav: Nav) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(title, style = T.title, modifier = Modifier.weight(1f))
+        RoundButton(Icons.Rounded.Search, "Search", { nav.push(Route.Search) })
+    }
+}
+
 @Composable
 fun RoundButton(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit, size: Dp = 42.dp) {
     Box(Modifier.size(size).press(onClick).frost(shape = CircleShape), contentAlignment = Alignment.Center) {
