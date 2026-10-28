@@ -254,10 +254,24 @@ fun Pill(text: String, fg: Color, bg: Color) {
     Text(text, style = T.tiny.copy(color = fg), modifier = Modifier.clip(CircleShape).background(bg).padding(horizontal = 8.dp, vertical = 3.dp))
 }
 
+/**
+ * A value that grows in from zero the first time it shows, after [delayMs], then glides to
+ * any new target. For bars and fills.
+ */
+@Composable
+fun grown(target: Float, delayMs: Long = 0): Float {
+    val a = remember { Animatable(0f) }
+    LaunchedEffect(target) {
+        if (a.value == 0f && delayMs > 0) kotlinx.coroutines.delay(delayMs)
+        a.animateTo(target, tween(700, easing = FastOutSlowInEasing))
+    }
+    return a.value
+}
+
 /** A horizontal bar that grows in from the left. */
 @Composable
-fun GrowBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 6.dp) {
-    val f by animateFloatAsState(fraction.coerceIn(0f, 1f), tween(800, easing = FastOutSlowInEasing), label = "bar")
+fun GrowBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 6.dp, delayMs: Long = 0) {
+    val f = grown(fraction.coerceIn(0f, 1f), delayMs)
     Box(modifier.fillMaxWidth().height(height).clip(CircleShape).background(C.track)) {
         Box(Modifier.fillMaxWidth(f).height(height).clip(CircleShape).background(color))
     }
