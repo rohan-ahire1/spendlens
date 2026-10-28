@@ -11,6 +11,7 @@ import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Categorizer
 import com.rohan.spend.data.Counting
 import com.rohan.spend.data.Prefs
+import com.rohan.spend.data.Refunds
 import com.rohan.spend.data.SmsSource
 import com.rohan.spend.data.Snapshot
 import com.rohan.spend.data.TxnCache
@@ -57,8 +58,18 @@ data class AppState(
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
     fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) { txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Categorizer.auto(t) }
     val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
-    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today) }
+    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today, ::net) }
     fun usual(): Long = if (target > 0) target else stats.usualMonth
+
+    val byId: Map<Long, Txn> by lazy { txns.associateBy { it.id } }
+    /** Refund id → the payment it gives money back for. */
+    val refundOf: Map<Long, Long> by lazy { Refunds.match(visible) { catOf(it) == Cat.REFUND } }
+    /** Payment id → its refunds, oldest first. */
+    val refundsOf: Map<Long, List<Txn>> by lazy {
+        refundOf.entries.groupBy({ it.value }, { byId.getValue(it.key) }).mapValues { e -> e.value.sortedBy { it.time } }
+    }
+    /** What a payment counts for in totals. Credits are left as they are. */
+    fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, null, refundsOf[t.id]?.sumOf { it.amount } ?: 0)
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {

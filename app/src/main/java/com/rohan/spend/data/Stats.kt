@@ -52,7 +52,11 @@ class Stats(
     private val catOf: (Txn) -> Cat,
     private val counting: Counting,
     private val today: LocalDate = LocalDate.now(),
+    private val net: (Txn) -> Long = { it.amount },
 ) {
+    /** What a payment counts for in every spending total: the user's share, less refunds. */
+    fun spend(t: Txn): Long = net(t)
+
     fun counts(t: Txn): Boolean {
         if (!t.debit) return false
         return when (catOf(t).bucket) {
@@ -76,12 +80,12 @@ class Stats(
         return txns.filter { val d = it.date(); !d.isBefore(a) && !d.isAfter(b) }
     }
 
-    fun spent(p: Period): Long = inRange(p).filter(::counts).sumOf { it.amount }
+    fun spent(p: Period): Long = inRange(p).filter(::counts).sumOf { spend(it) }
 
     /** Living cost per month, oldest first, ending with the current month. */
     fun monthly(n: Int = 12, filter: (Txn) -> Boolean = ::counts): List<Pair<YearMonth, Long>> {
         val months = (n - 1 downTo 0).map { thisMonth.minusMonths(it.toLong()) }
-        val sums = txns.filter(filter).groupBy { it.month() }.mapValues { e -> e.value.sumOf { it.amount } }
+        val sums = txns.filter(filter).groupBy { it.month() }.mapValues { e -> e.value.sumOf { spend(it) } }
         return months.map { it to (sums[it] ?: 0L) }
     }
 
@@ -107,7 +111,7 @@ class Stats(
 
     fun byCat(p: Period): List<CatTotal> = inRange(p).filter(::counts)
         .groupBy(catOf)
-        .map { (c, l) -> CatTotal(c, l.sumOf { it.amount }, l.size) }
+        .map { (c, l) -> CatTotal(c, l.sumOf { spend(it) }, l.size) }
         .sortedByDescending { it.total }
 
     fun recent(limit: Int = 6): List<Txn> {
@@ -120,11 +124,11 @@ class Stats(
 
     /** Counted spend per day of any month. */
     fun dailyIn(ym: YearMonth): Map<LocalDate, Long> =
-        txns.filter { counts(it) && it.month() == ym }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
+        txns.filter { counts(it) && it.month() == ym }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { spend(it) } }
 
     fun byCatIn(ym: YearMonth): List<CatTotal> = txns.filter { counts(it) && it.month() == ym }
         .groupBy(catOf)
-        .map { (c, l) -> CatTotal(c, l.sumOf { it.amount }, l.size) }
+        .map { (c, l) -> CatTotal(c, l.sumOf { spend(it) }, l.size) }
         .sortedByDescending { it.total }
 
     /** The oldest month the SMS history reaches. */
@@ -133,7 +137,7 @@ class Stats(
     /** Counted spend for each of the last [n] days, oldest first. */
     fun lastDays(n: Int): List<Pair<LocalDate, Long>> {
         val from = today.minusDays(n - 1L)
-        val sums = txns.filter { counts(it) && !it.date().isBefore(from) }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
+        val sums = txns.filter { counts(it) && !it.date().isBefore(from) }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { spend(it) } }
         return (0 until n).map { from.plusDays(it.toLong()).let { d -> d to (sums[d] ?: 0L) } }
     }
 
@@ -165,7 +169,7 @@ class Stats(
         val months = (1..3).map { thisMonth.minusMonths(it.toLong()) }.filter { it >= (txns.minOfOrNull { t -> t.month() } ?: thisMonth) }
         if (months.isEmpty()) return@lazy emptyList()
         txns.filter { counts(it) && it.month() in months }.groupBy(catOf)
-            .map { (c, l) -> CatTotal(c, l.sumOf { it.amount } / months.size, l.size) }
+            .map { (c, l) -> CatTotal(c, l.sumOf { spend(it) } / months.size, l.size) }
             .sortedByDescending { it.total }
     }
 
@@ -173,7 +177,7 @@ class Stats(
     fun topPlaces(days: Long = 90, n: Int = 5): List<PlaceTotal> = counted(days)
         .filter { catOf(it) != Cat.PEOPLE && catOf(it) != Cat.FAMILY }
         .groupBy { it.payeeKey }
-        .map { (_, l) -> PlaceTotal(l.first().payee, catOf(l.first()), l.sumOf { it.amount }, l.size) }
+        .map { (_, l) -> PlaceTotal(l.first().payee, catOf(l.first()), l.sumOf { spend(it) }, l.size) }
         .sortedByDescending { it.total }
         .take(n)
 
@@ -181,17 +185,17 @@ class Stats(
         val l = counted(days)
         val from = today.minusDays(days - 1)
         val dowCount = IntArray(7).also { c -> (0 until days).forEach { c[from.plusDays(it).dayOfWeek.value - 1]++ } }
-        val dow = LongArray(7).also { a -> l.forEach { a[it.date().dayOfWeek.value - 1] += it.amount } }
+        val dow = LongArray(7).also { a -> l.forEach { a[it.date().dayOfWeek.value - 1] += spend(it) } }
         val part = LongArray(4).also { a ->
             l.forEach {
                 val h = Instant.ofEpochMilli(it.time).atZone(zone).hour
-                a[when (h) { in 5..11 -> 0; in 12..16 -> 1; in 17..21 -> 2; else -> 3 }] += it.amount
+                a[when (h) { in 5..11 -> 0; in 12..16 -> 1; in 17..21 -> 2; else -> 3 }] += spend(it)
             }
         }
         val small = counted(30).filter { it.amount < 200_00 }
         return Habits(
             dow.mapIndexed { i, v -> if (dowCount[i] == 0) 0 else v / dowCount[i] },
-            part.toList(), small.size, small.sumOf { it.amount },
+            part.toList(), small.size, small.sumOf { spend(it) },
         )
     }
 
@@ -202,9 +206,9 @@ class Stats(
     /** Biggest moves this month vs the average of the 3 months before, pace-adjusted. */
     fun changes(limit: Int = 3): List<Change> {
         val pace = today.dayOfMonth.toDouble() / thisMonth.lengthOfMonth()
-        val now = txns.filter { counts(it) && it.month() == thisMonth }.groupBy(catOf).mapValues { e -> e.value.sumOf { it.amount } }
+        val now = txns.filter { counts(it) && it.month() == thisMonth }.groupBy(catOf).mapValues { e -> e.value.sumOf { spend(it) } }
         val prev = (1..3).map { thisMonth.minusMonths(it.toLong()) }.toSet()
-        val before = txns.filter { counts(it) && it.month() in prev }.groupBy(catOf).mapValues { e -> e.value.sumOf { it.amount } / 3.0 * pace }
+        val before = txns.filter { counts(it) && it.month() in prev }.groupBy(catOf).mapValues { e -> e.value.sumOf { spend(it) } / 3.0 * pace }
         return (now.keys + before.keys).mapNotNull { c ->
             val n = now[c] ?: 0L
             val b = before[c] ?: 0.0
@@ -218,7 +222,7 @@ class Stats(
 
     fun payeesThisMonth(cat: Cat): List<Triple<String, Long, Int>> =
         inCat(cat).filter { it.month() == thisMonth }.groupBy { it.payee }
-            .map { (p, l) -> Triple(p, l.sumOf { it.amount }, l.size) }
+            .map { (p, l) -> Triple(p, l.sumOf { spend(it) }, l.size) }
             .sortedByDescending { it.second }
 
     /** Recurring charges: same payee and amount seen in 2+ months. */
@@ -247,7 +251,7 @@ class Stats(
 
     fun atPayeeThisMonth(t: Txn): Pair<Long, Int> {
         val l = txns.filter { it.debit && it.payeeKey == t.payeeKey && it.month() == thisMonth }
-        return l.sumOf { it.amount } to l.size
+        return l.sumOf { spend(it) } to l.size
     }
 
     /** Per-account summary for the Accounts screen. */

@@ -72,11 +72,11 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
         st.inCat(cat).filter { if (span == Span.MONTH && past != null) it.month() == past else !it.date().isBefore(span.from(today)) }
     }
     val payees = remember(inSpan) {
-        inSpan.groupBy { it.payee }.map { (p, l) -> p to l.sumOf { it.amount } }.sortedByDescending { it.second }
+        inSpan.groupBy { it.payee }.map { (p, l) -> p to l.sumOf { st.spend(it) } }.sortedByDescending { it.second }
     }
     val list = inSpan.filter { payee == null || it.payee == payee }
         .let { l -> if (biggest) l.sortedByDescending { it.amount } else l.sortedByDescending { it.time } }
-    val total = list.sumOf { it.amount }
+    val total = list.sumOf { st.spend(it) }
     // What a usual month in this category looks like, from the months before this one.
     val usual = remember(st, cat) {
         st.sinceHistory(st.catMonthly(cat)).filter { it.first < YearMonth.from(today) }.map { it.second }.filter { it > 0 }
