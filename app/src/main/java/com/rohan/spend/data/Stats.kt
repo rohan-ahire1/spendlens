@@ -108,6 +108,13 @@ class Stats(
         txns.filter { counts(it) && it.month() == thisMonth }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
     }
 
+    /** Counted spend for each of the last [n] days, oldest first. */
+    fun lastDays(n: Int): List<Pair<LocalDate, Long>> {
+        val from = today.minusDays(n - 1L)
+        val sums = txns.filter { counts(it) && !it.date().isBefore(from) }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
+        return (0 until n).map { from.plusDays(it.toLong()).let { d -> d to (sums[d] ?: 0L) } }
+    }
+
     fun onDay(d: LocalDate): List<Txn> = txns.filter { it.date() == d }
 
     val hasToday: Boolean get() = txns.any { it.date() == today }
