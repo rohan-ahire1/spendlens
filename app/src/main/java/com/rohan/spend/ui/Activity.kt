@@ -1,5 +1,15 @@
 package com.rohan.spend.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -54,13 +64,19 @@ private enum class Filter(val label: String, val test: (Txn) -> Boolean) {
 @Composable
 fun ActivityScreen(s: AppState, nav: Nav) {
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
-    val list = remember(s.visible, filter) { s.visible.filter(filter.test) }
+    var dayEpoch by rememberSaveable { mutableStateOf<Long?>(null) }
+    val day = dayEpoch?.let(LocalDate::ofEpochDay)
+    val list = remember(s.visible, filter, day) { s.visible.filter { filter.test(it) && (day == null || it.date() == day) } }
+    val days = remember(s.stats) { s.stats.lastDays(14) }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
     ) {
         item {
             Text("Activity", style = T.title, modifier = Modifier.padding(vertical = 10.dp))
+        }
+        item {
+            Fortnight(Modifier.rise(0).padding(bottom = 14.dp), days, s.usual() / 30, day) { d -> dayEpoch = if (d == day) null else d.toEpochDay() }
         }
         item {
             LazyRow(Modifier.padding(bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -72,16 +88,70 @@ fun ActivityScreen(s: AppState, nav: Nav) {
     }
 }
 
-/** Day headers with a net total, then a frosted card per day. */
+/** Two weeks of daily spend as heat-shaded bars. Tap one to see only that day. */
+@Composable
+private fun Fortnight(modifier: Modifier, days: List<Pair<LocalDate, Long>>, perDay: Long, sel: LocalDate?, onPick: (LocalDate) -> Unit) {
+    val max = days.maxOf { it.second }.coerceAtLeast(1L)
+    val shown = sel?.let { d -> days.firstOrNull { it.first == d } }
+    FrostCard(modifier, pad = 16.dp) {
+        Column {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Column(Modifier.weight(1f)) {
+                    Text(shown?.let { dayLabel(it.first) } ?: "Last 14 days", style = T.label)
+                    CountUp(shown?.second ?: days.sumOf { it.second }, T.h2)
+                }
+                Text(if (sel != null) "Tap again to clear" else "Tap a day", style = T.tiny)
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth().height(96.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom) {
+                days.forEach { (d, v) ->
+                    val on = d == sel
+                    val lvl = level(v, perDay)
+                    val frac = if (v == 0L) 0f else (kotlin.math.sqrt(v.toFloat() / max)).coerceAtLeast(.08f)
+                    Box(Modifier.weight(1f).fillMaxHeight().press({ onPick(d) }), contentAlignment = Alignment.BottomCenter) {
+                        Box(
+                            Modifier.fillMaxWidth().fillMaxHeight(frac.coerceAtLeast(.04f)).clip(RoundedCornerShape(6.dp))
+                                .background(if (v == 0L) C.noSpend else C.heat[lvl])
+                                .then(if (on) Modifier.border(2.dp, C.today, RoundedCornerShape(6.dp)) else Modifier),
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                days.forEach { (d, _) ->
+                    Text(
+                        d.dayOfMonth.toString(), textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
+                        style = T.tiny.copy(fontSize = 10.sp, color = if (d == sel) C.today else C.faint, fontWeight = if (d == sel) FontWeight.Bold else FontWeight.Normal),
+                    )
+                }
+            }
+        }
+    }
+}
+
+private val dow = DateTimeFormatter.ofPattern("EEEE")
+private val mon = DateTimeFormatter.ofPattern("MMMM")
+
+/** A big date number beside each day's name and total, then that day's card. */
 fun androidx.compose.foundation.lazy.LazyListScope.dayGroups(list: List<Txn>, s: AppState, nav: Nav) {
     val days = list.groupBy { it.date() }.entries.toList()
+    val today = LocalDate.now()
     days.forEachIndexed { i, (day, txns) ->
         item(key = day.toString()) {
             Column(Modifier.rise(i)) {
-                Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp)) {
-                    Text(dayLabel(day), style = T.label, modifier = Modifier.weight(1f))
+                Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        day.dayOfMonth.toString().padStart(2, '0'),
+                        style = T.title.copy(color = if (day == today) C.today else C.ink, fontFeatureSettings = "tnum"),
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(if (day == today) "Today" else if (day == today.minusDays(1)) "Yesterday" else day.format(dow), style = T.h3)
+                        Text(day.format(mon) + if (day.year != today.year) " ${day.year}" else "", style = T.tiny)
+                    }
                     val out = txns.filter { it.debit }.sumOf { it.amount }
-                    if (out > 0) Text(inr(out), style = T.label)
+                    if (out > 0) Text(inr(out), style = T.num.copy(color = C.muted))
                 }
                 FrostCard(pad = 14.dp) {
                     Column {
