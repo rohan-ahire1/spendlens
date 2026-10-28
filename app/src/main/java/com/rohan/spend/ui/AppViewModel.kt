@@ -14,11 +14,10 @@ import com.rohan.spend.data.Prefs
 import com.rohan.spend.data.Refunds
 import com.rohan.spend.data.Transfers
 import com.rohan.spend.data.SmsSource
-import com.rohan.spend.data.Snapshot
 import com.rohan.spend.data.Split
 import com.rohan.spend.data.Splits
 import com.rohan.spend.data.TxnCache
-import com.rohan.spend.data.ids
+import com.rohan.spend.data.sync
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
@@ -31,7 +30,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.time.Duration
 import java.time.LocalDate
 import java.time.ZonedDateTime
@@ -107,12 +105,29 @@ data class AppState(
     }
 }
 
+/** The user's saved choices laid over [this]. The app and the background loader both build state this way. */
+fun AppState.withPrefs(prefs: Prefs) = copy(
+    payeeRules = prefs.payeeRules,
+    txnCats = prefs.txnCats,
+    notes = prefs.notes,
+    hidden = prefs.hidden,
+    excludeFamily = prefs.excludeFamily,
+    countCardBills = prefs.countCardBills,
+    autoRefresh = prefs.autoRefresh,
+    target = prefs.target,
+    budgets = prefs.budgets,
+    recapsClosed = prefs.recapsClosed,
+    splits = prefs.splits,
+    paybacks = prefs.paybacks,
+    notPaybacks = prefs.notPaybacks,
+)
+
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = Prefs(app)
-    private val _state = MutableStateFlow(fromPrefs(AppState()))
+    private val _state = MutableStateFlow(AppState().withPrefs(prefs))
     val state: StateFlow<AppState> = _state
     private var scanJob: Job? = null
-    private val cacheFile = File(app.filesDir, "txns.bin")
+    private val cacheFile = TxnCache.file(app)
     /** Highest SMS _ID already read, or -1 when there's no cache and everything must be read. */
     private var maxSmsId = -1L
 
@@ -125,22 +140,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
-    private fun fromPrefs(s: AppState) = s.copy(
-        payeeRules = prefs.payeeRules,
-        txnCats = prefs.txnCats,
-        notes = prefs.notes,
-        hidden = prefs.hidden,
-        excludeFamily = prefs.excludeFamily,
-        countCardBills = prefs.countCardBills,
-        autoRefresh = prefs.autoRefresh,
-        target = prefs.target,
-        budgets = prefs.budgets,
-        recapsClosed = prefs.recapsClosed,
-        splits = prefs.splits,
-        paybacks = prefs.paybacks,
-        notPaybacks = prefs.notPaybacks,
-    )
 
     fun hasPermission() = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.READ_SMS) ==
         PackageManager.PERMISSION_GRANTED
@@ -179,16 +178,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val started = System.currentTimeMillis()
             val app = getApplication<Application>()
             val snap = withContext(Dispatchers.IO) {
-                // Taken before reading, so a message that lands mid-scan is picked up next time rather than skipped.
-                val alive = SmsSource.ids(app)
-                val top = alive.maxOrNull() ?: 0L
-                // IDs going backwards means the inbox was rebuilt (restore, new phone), so read it all again.
-                val whole = known < 0 || top < known
-                val read = SmsSource.read(app, afterId = if (whole) 0 else known) { done, total, found ->
+                SmsSource.sync(app, known, _state.value.txns) { done, total, found ->
                     _state.update { it.copy(done = done, total = total, justFound = found.reversed()) }
-                }
-                val txns = if (whole) read else TxnCache.merge(_state.value.txns, alive, read)
-                Snapshot(if (whole) top else maxOf(top, known), txns).also { runCatching { TxnCache.save(cacheFile, it) } }
+                }!!.also { runCatching { TxnCache.save(cacheFile, it) } }
             }
             maxSmsId = snap.maxId
             _state.update { it.copy(foundCount = snap.txns.size) }
@@ -248,7 +240,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun resetEdits() {
         prefs.clear()
-        _state.update { fromPrefs(it) }
+        _state.update { it.withPrefs(prefs) }
     }
 
     fun exportCsv(uri: Uri) {

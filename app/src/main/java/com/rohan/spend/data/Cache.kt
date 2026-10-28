@@ -60,13 +60,16 @@ object TxnCache {
         Snapshot(maxId, l)
     }.getOrNull()
 
-    fun load(f: File): Snapshot? {
+    /** The one cache file, shared by the app and the widget and alarms. */
+    fun file(context: Context) = File(context.filesDir, "txns.bin")
+
+    fun load(f: File): Snapshot? = synchronized(this) {
         if (!f.exists()) return null
         return f.inputStream().use(::read) ?: run { f.delete(); null }
     }
 
     /** Writes beside the old file then swaps, so a crash mid-write never leaves half a cache. */
-    fun save(f: File, s: Snapshot) {
+    fun save(f: File, s: Snapshot) = synchronized(this) {
         val tmp = File(f.path + ".tmp")
         tmp.outputStream().use { write(it, s) }
         if (!tmp.renameTo(f)) { f.delete(); tmp.renameTo(f) }
@@ -94,6 +97,24 @@ object TxnCache {
         if (n > 1_000_000) error("bad length")
         return ByteArray(n).also(::readFully).toString(Charsets.UTF_8)
     }
+}
+
+/**
+ * Reads SMS newer than [known] into [cached]. When there's no cache ([known] < 0) or the inbox was
+ * rebuilt (IDs went backwards) the whole inbox has to be read; with [wholeOk] false that returns null instead.
+ */
+fun SmsSource.sync(
+    context: Context, known: Long, cached: List<Txn>, wholeOk: Boolean = true,
+    onProgress: (done: Int, total: Int, found: List<Txn>) -> Unit = { _, _, _ -> },
+): Snapshot? {
+    // Taken before reading, so a message that lands mid-scan is picked up next time rather than skipped.
+    val alive = ids(context)
+    val top = alive.maxOrNull() ?: 0L
+    val whole = known < 0 || top < known
+    if (whole && !wholeOk) return null
+    val read = read(context, afterId = if (whole) 0 else known, onProgress = onProgress)
+    val txns = if (whole) read else TxnCache.merge(cached, alive, read)
+    return Snapshot(if (whole) top else maxOf(top, known), txns)
 }
 
 /** Every SMS _ID in the inbox from the last [monthsBack] months. Cheap: no bodies are read. */
