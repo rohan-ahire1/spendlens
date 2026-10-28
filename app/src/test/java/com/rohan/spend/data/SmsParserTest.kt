@@ -35,6 +35,13 @@ class SmsParserTest {
         assertEquals(Cat.FOOD_DELIVERY, Categorizer.auto(t))
     }
 
+    @Test fun fuelIsItsOwnCategory() {
+        val t = parse("Spent Rs.2000 On HDFC Bank Card 5678 At HPCL HARI OM PETROLEUM On 2026-10-11:09:15:01.Not You? To Block+Reissue Call")!!
+        assertEquals(Cat.FUEL, Categorizer.auto(t))
+        val ride = parse("Spent Rs.240 On HDFC Bank Card 5678 At UBER INDIA On 2026-10-11:09:15:01.Not You? To Block+Reissue Call")!!
+        assertEquals(Cat.COMMUTE, Categorizer.auto(ride))
+    }
+
     @Test fun salaryCredit() {
         val t = parse("Update! INR 1,20,966.00 deposited in HDFC Bank A/c XX1234 on 01-OCT-26 for NEFT Cr-CITI0000001-ACME SOFTWARE PVT LTD-ROHAN-CITIN26.Avl bal INR 2,10,000.50")!!
         assertFalse(t.debit)
