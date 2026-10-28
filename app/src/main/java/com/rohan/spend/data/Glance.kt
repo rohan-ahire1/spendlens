@@ -25,6 +25,8 @@ fun nudgeCopy(m: MonthLeft): Pair<String, String> =
     (if (m.today > 0) "You spent ${inr(m.today)} today" else "No spending today") to m.line
 
 const val SUMMARY_HOUR = 21
+/** Renewal alerts come in the morning, while there's still time to cancel. */
+const val RENEWALS_HOUR = 9
 
 /** The evening summary goes out once a day, from 9 pm to midnight. An alarm held up past midnight is dropped. */
 fun summaryDue(now: LocalDateTime, lastSent: String): Boolean =

@@ -81,6 +81,37 @@ fun renewals(subs: List<Subscription>, today: LocalDate, within: Int = 3): List<
 fun upcomingRenewals(txns: List<Txn>, catOf: (Txn) -> Cat, today: LocalDate = LocalDate.now(), within: Int = 3): List<Renewal> =
     renewals(detectSubs(txns.filter { it.debit && catOf(it) == Cat.SUBSCRIPTIONS }, today), today, within)
 
+fun renewsIn(days: Long): String = when (days) {
+    0L -> "renews today"
+    1L -> "renews tomorrow"
+    else -> "renews in $days days"
+}
+
+/** One subscription notification. [key] is remembered so the same renewal or price change is told once. */
+data class SubAlert(val key: String, val title: String, val text: String)
+
+/**
+ * What to tell the user about [subs] today: renewals due within [within] days, and price rises from the
+ * last week (older ones were already on the Subscriptions screen). Anything in [seen] was told already.
+ */
+fun subAlerts(subs: List<Subscription>, today: LocalDate, seen: Set<String>, within: Int = 2): List<SubAlert> {
+    val due = renewals(subs, today, within).map { r ->
+        val s = r.sub
+        SubAlert("renew|${s.payeeKey}|${s.next}", "${s.payee} ${renewsIn(r.days)} · ${inr(s.amount)}", s.cadence.label)
+    }
+    val rises = subs.filter { !it.cancelled && it.rise != null && !it.rise.since.isBefore(today.minusDays(7)) }.map { s ->
+        val r = s.rise!!
+        SubAlert("rise|${s.payeeKey}|${r.to}|${r.since}", "${s.payee} went up ${inr(r.by)} to ${inr(r.to)}", "Was ${inr(r.from)}")
+    }
+    return (due + rises).filter { it.key !in seen }
+}
+
+/** Drops remembered alerts whose date is long past, so the set doesn't grow forever. */
+fun pruneSeen(seen: Set<String>, today: LocalDate, keepDays: Long = 60): Set<String> = seen.filterTo(HashSet()) { k ->
+    val d = runCatching { LocalDate.parse(k.substringAfterLast('|')) }.getOrNull()
+    d == null || !d.isBefore(today.minusDays(keepDays))
+}
+
 /** What live subscriptions cost a month, with yearly and quarterly plans spread out. */
 fun List<Subscription>.perMonth(): Long = filter { !it.cancelled }.sumOf { it.monthly }
 

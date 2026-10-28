@@ -24,17 +24,12 @@ import com.rohan.spend.data.Subscription
 import com.rohan.spend.data.inr
 import com.rohan.spend.data.inrShort
 import com.rohan.spend.data.perMonth
+import com.rohan.spend.data.renewsIn
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 private val dayMon = DateTimeFormatter.ofPattern("d MMM")
 private val mon = DateTimeFormatter.ofPattern("MMM")
-
-fun renewsIn(days: Long): String = when (days) {
-    0L -> "renews today"
-    1L -> "renews tomorrow"
-    else -> "renews in $days days"
-}
 
 /** "Up ₹100 since Aug", or null when the price hasn't gone up. */
 fun Subscription.riseLabel(today: LocalDate = LocalDate.now()): String? = rise?.let {

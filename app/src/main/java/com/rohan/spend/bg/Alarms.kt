@@ -6,6 +6,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.rohan.spend.data.Prefs
+import com.rohan.spend.data.RENEWALS_HOUR
 import com.rohan.spend.data.SUMMARY_HOUR
 import com.rohan.spend.data.nextAt
 import java.time.LocalTime
@@ -18,6 +19,7 @@ import java.time.ZonedDateTime
 object Alarms {
     const val MIDNIGHT = "com.rohan.spend.MIDNIGHT"
     const val SUMMARY = "com.rohan.spend.SUMMARY"
+    const val RENEWALS = "com.rohan.spend.RENEWALS"
     /** A few seconds in, so the date has surely turned over. */
     private val midnight = LocalTime.of(0, 0, 5)
 
@@ -31,6 +33,8 @@ object Alarms {
         // Allowed while idle so Doze doesn't hold it until morning; inexact, so it may come a few minutes late.
         if (prefs.eveningSummary) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms(nextAt(now, LocalTime.of(SUMMARY_HOUR, 0))), intent(context, SUMMARY))
         else am.cancel(intent(context, SUMMARY))
+        if (prefs.renewalAlerts) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, ms(nextAt(now, LocalTime.of(RENEWALS_HOUR, 0))), intent(context, RENEWALS))
+        else am.cancel(intent(context, RENEWALS))
     }
 
     private fun ms(t: ZonedDateTime) = t.toInstant().toEpochMilli()
@@ -48,6 +52,7 @@ class Ticks : BroadcastReceiver() {
         when (intent.action) {
             Alarms.MIDNIGHT -> inBackground { Widget.refresh(context) }
             Alarms.SUMMARY -> inBackground { Notify.summary(context) }
+            Alarms.RENEWALS -> inBackground { Notify.renewals(context) }
         }
     }
 }

@@ -16,12 +16,15 @@ import com.rohan.spend.MainActivity
 import com.rohan.spend.R
 import com.rohan.spend.data.Prefs
 import com.rohan.spend.data.nudgeCopy
+import com.rohan.spend.data.pruneSeen
+import com.rohan.spend.data.subAlerts
 import com.rohan.spend.data.summaryDue
 import java.time.LocalDateTime
 
 object Notify {
     const val SUMMARY = "summary"
     const val SUMMARY_ID = 1
+    const val RENEWALS = "renewals"
 
     /** True when Android will show our notifications at all. */
     fun allowed(context: Context): Boolean {
@@ -36,6 +39,10 @@ object Notify {
         // Low: it comes every evening, so it sits in the shade quietly rather than making a sound.
         nm.createNotificationChannel(NotificationChannel(SUMMARY, "Evening summary", NotificationManager.IMPORTANCE_LOW).apply {
             description = "Today's spend and what's left this month, at 9 pm"
+            group = "alerts"
+        })
+        nm.createNotificationChannel(NotificationChannel(RENEWALS, "Renewals", NotificationManager.IMPORTANCE_DEFAULT).apply {
+            description = "A day or two before a subscription charges, and when one costs more"
             group = "alerts"
         })
     }
@@ -65,5 +72,16 @@ object Notify {
         val (title, text) = nudgeCopy(m)
         post(context, SUMMARY, SUMMARY_ID, title, text)
         prefs.summarySent = now.toLocalDate().toString()
+    }
+
+    /** The morning check: renewals in the next two days and fresh price rises, each told once. */
+    fun renewals(context: Context) {
+        val prefs = Prefs(context)
+        if (!prefs.renewalAlerts || !allowed(context)) return
+        val s = Headless.load(context) ?: return
+        val seen = pruneSeen(prefs.alertsSeen, s.today)
+        val new = subAlerts(s.stats.subs, s.today, seen)
+        new.forEach { post(context, RENEWALS, it.key.hashCode(), it.title, it.text) }
+        prefs.alertsSeen = seen + new.map { it.key }
     }
 }

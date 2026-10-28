@@ -69,6 +69,7 @@ data class AppState(
     val paybacks: Map<Long, Long> = emptyMap(),
     val notPaybacks: Set<String> = emptySet(),
     val eveningSummary: Boolean = false,
+    val renewalAlerts: Boolean = false,
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
@@ -129,6 +130,7 @@ fun AppState.withPrefs(prefs: Prefs) = copy(
     paybacks = prefs.paybacks,
     notPaybacks = prefs.notPaybacks,
     eveningSummary = prefs.eveningSummary,
+    renewalAlerts = prefs.renewalAlerts,
 )
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -251,6 +253,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setCountCardBills(v: Boolean) { prefs.countCardBills = v; _state.update { it.copy(countCardBills = v) } }
     fun setAutoRefresh(v: Boolean) { prefs.autoRefresh = v; _state.update { it.copy(autoRefresh = v) } }
     fun setEveningSummary(v: Boolean) { prefs.eveningSummary = v; _state.update { it.copy(eveningSummary = v) }; Alarms.schedule(getApplication()) }
+    fun setRenewalAlerts(v: Boolean) { prefs.renewalAlerts = v; _state.update { it.copy(renewalAlerts = v) }; Alarms.schedule(getApplication()) }
     fun setTarget(paise: Long) { prefs.target = paise; _state.update { it.copy(target = paise) } }
 
     fun resetEdits() {

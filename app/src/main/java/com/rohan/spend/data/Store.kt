@@ -55,6 +55,16 @@ class Prefs(context: Context) {
         get() = p.getString("summarySent", "")!!
         set(v) = p.edit().putString("summarySent", v).apply()
 
+    /** Heads-ups before a subscription charges and when one costs more. Off until the user turns it on. */
+    var renewalAlerts: Boolean
+        get() = p.getBoolean("renewalAlerts", false)
+        set(v) = p.edit().putBoolean("renewalAlerts", v).apply()
+
+    /** [SubAlert] keys already shown, so each renewal and price change is told once. */
+    var alertsSeen: Set<String>
+        get() = p.getStringSet("alertsSeen", emptySet())!!.toSet()
+        set(v) = p.edit().putStringSet("alertsSeen", v).apply()
+
     fun clear() = p.edit().clear().apply()
 
     // Tab and newline never appear in keys we write, so a flat string is enough.

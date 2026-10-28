@@ -317,7 +317,7 @@ private fun Reminders(s: AppState, vm: AppViewModel, modifier: Modifier = Modifi
     val ctx = LocalContext.current
     // Which switch asked, so the answer turns on the right one. Saved in case the dialog outlives the screen.
     var asking by rememberSaveable { mutableStateOf<String?>(null) }
-    val turnOn: (String) -> Unit = { which -> if (which == "summary") vm.setEveningSummary(true) }
+    val turnOn: (String) -> Unit = { which -> if (which == "summary") vm.setEveningSummary(true) else vm.setRenewalAlerts(true) }
     val blocked = "Notifications are off for Spend Lens, so this stays off. Allow them in Android settings."
     val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         val which = asking
@@ -337,6 +337,9 @@ private fun Reminders(s: AppState, vm: AppViewModel, modifier: Modifier = Modifi
         Column {
             Setting("Evening summary", if (s.eveningSummary && muted) "Blocked in Android settings" else "Today's spend at 9 pm") {
                 FrostSwitch(s.eveningSummary) { toggle("summary", it, vm::setEveningSummary) }
+            }
+            Setting("Renewal alerts", if (s.renewalAlerts && muted) "Blocked in Android settings" else "Before a subscription charges, and when one costs more") {
+                FrostSwitch(s.renewalAlerts) { toggle("renewals", it, vm::setRenewalAlerts) }
             }
         }
     }
