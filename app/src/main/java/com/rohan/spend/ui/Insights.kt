@@ -50,7 +50,7 @@ private val monthLong = DateTimeFormatter.ofPattern("MMMM yyyy")
 @Composable
 fun InsightsScreen(s: AppState, nav: Nav) {
     val st = s.stats
-    val months = remember(st) { st.monthly(12) }
+    val months = remember(st) { st.sinceHistory(st.monthly(12)) }
     val investing = remember(st) { st.avgMonthly { it.debit && s.catOf(it).bucket == Bucket.INVESTING } }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
@@ -152,7 +152,7 @@ private fun KeptCard(income: Long, living: Long, family: Long, investing: Long) 
     }
 }
 
-/** Twelve monthly bars with a dashed "usual" line. Tap a bar to read it. */
+/** Monthly bars with a dashed "usual" line. Tap a bar to read it. */
 @Composable
 fun MonthBars(data: List<Pair<YearMonth, Long>>, usual: Long, color: Color) {
     var sel by remember(data) { mutableIntStateOf(data.lastIndex) }

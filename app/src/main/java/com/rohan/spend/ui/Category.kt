@@ -24,7 +24,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun CategoryScreen(cat: Cat, s: AppState, nav: Nav) {
     val st = s.stats
-    val months = remember(st, cat) { st.catMonthly(cat) }
+    val months = remember(st, cat) { st.sinceHistory(st.catMonthly(cat)) }
     val payees = remember(st, cat) { st.payeesThisMonth(cat) }
     val recent = remember(st, cat) { st.inCat(cat).take(30) }
     val avg = months.dropLast(1).map { it.second }.filter { it > 0 }.let { if (it.isEmpty()) 0L else it.sum() / it.size }
