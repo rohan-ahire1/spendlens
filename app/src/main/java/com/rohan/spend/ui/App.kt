@@ -39,6 +39,7 @@ sealed interface Route {
     data class Cats(val month: String) : Route
     data object Search : Route
     data object Hidden : Route
+    data class Recap(val month: String) : Route
 }
 
 /** One screen on the stack. [key] is unique so two visits to the same route keep separate state. */
@@ -85,6 +86,7 @@ class Nav(start: List<Entry>, private var next: Int) {
             is Route.Cats -> "cats:${r.month}"
             Route.Search -> "search"
             Route.Hidden -> "hidden"
+            is Route.Recap -> "recap:${r.month}"
         }
 
         private fun decode(s: String): Route? = runCatching {
@@ -97,6 +99,7 @@ class Nav(start: List<Entry>, private var next: Int) {
                 "cats" -> Route.Cats(p[1])
                 "search" -> Route.Search
                 "hidden" -> Route.Hidden
+                "recap" -> Route.Recap(p[1])
                 else -> null
             }
         }.getOrNull()
@@ -174,6 +177,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                     Route.Search -> SearchScreen(s, nav)
                     is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
                     Route.Hidden -> HiddenScreen(s, vm, nav)
+                    is Route.Recap -> RecapScreen(java.time.YearMonth.parse(r.month), s, nav)
                 }
             }
         }

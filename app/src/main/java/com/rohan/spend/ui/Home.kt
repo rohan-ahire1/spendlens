@@ -59,6 +59,7 @@ import com.rohan.spend.data.BudgetState
 import com.rohan.spend.data.CatTotal
 import com.rohan.spend.data.inr
 import com.rohan.spend.data.inrShort
+import com.rohan.spend.data.renewals
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
@@ -77,6 +78,9 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val cats = remember(st, ym) { st.byCatIn(ym) }
     val spent = daily.values.sum()
     val usual = s.usual()
+    val due = remember(st) { renewals(st.subs, today, within = 2) }
+    val lastMonth = st.thisMonth.minusMonths(1)
+    val showRecap = recapDue(today) && lastMonth >= st.firstMonth && lastMonth.toString() !in s.recapsClosed
     val budgets = s.budgetsIn(ym)
     Refreshable(s.refreshing, vm::refresh) {
     LazyColumn(
@@ -96,6 +100,16 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             }
         }
         item { Headline(Modifier.rise(0), ym, current, spent, usual) }
+        if (current && showRecap) item {
+            val last = remember(st) { st.dailyIn(lastMonth).values.sum() }
+            RecapNudge(lastMonth, last, Modifier.rise(1).padding(top = 16.dp), { nav.push(Route.Recap(lastMonth.toString())) }, { vm.closeRecap(lastMonth) })
+        }
+        if (current && due.isNotEmpty()) item {
+            RenewalCard(due, Modifier.rise(1).padding(top = if (showRecap) 8.dp else 16.dp)) { nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) }
+        }
+        if (!current) item {
+            Row(Modifier.rise(1).padding(top = 12.dp)) { Chip("See the ${ym.monthName()} recap", false, { nav.push(Route.Recap(ym.toString())) }) }
+        }
         item {
             Calendar(
                 Modifier.rise(1).padding(top = 18.dp), ym, today, daily, usual / ym.lengthOfMonth(), sel,
