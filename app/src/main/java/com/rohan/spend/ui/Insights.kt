@@ -6,6 +6,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import com.rohan.spend.data.Change
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,43 +65,32 @@ fun InsightsScreen(s: AppState, nav: Nav) {
         item { Box(Modifier.rise(0)) { KeptCard(st.income, st.avgLiving, if (s.excludeFamily) st.avgFamily else 0L, investing) } }
         item { SectionTitle("Living cost by month", Modifier.rise(1)) }
         item {
-            FrostCard(Modifier.rise(2)) { MonthBars(months, s.usual(), C.ink) }
+            FrostCard(Modifier.rise(2)) { MonthBars(months, s.usual(), C.heat[3]) }
         }
         val changes = st.changes()
         if (changes.isNotEmpty()) {
             item { SectionTitle("Biggest changes", Modifier.rise(3)) }
             item {
-                FrostCard(Modifier.rise(4), pad = 6.dp) {
-                    Column {
-                        changes.forEach { c ->
-                            Row(
-                                Modifier.fillMaxWidth().press({ nav.push(Route.Category(c.cat)) }).padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                CatIcon(c.cat, 36.dp)
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(c.cat.label, style = T.body)
-                                    Text("${inr(c.now)} so far, vs usual pace", style = T.tiny)
-                                }
-                                if (c.pct >= 0) Pill("+${c.pct}%", C.warnInk, C.warnBg)
-                                else Pill("${c.pct}%", C.green, C.green.copy(alpha = .1f))
-                            }
-                        }
-                    }
+                Row(Modifier.rise(4).fillMaxWidth().height(132.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    changes.forEach { c -> ChangeTile(c, Modifier.weight(1f).fillMaxHeight()) { nav.push(Route.Category(c.cat)) } }
                 }
             }
         }
         if (st.subs.isNotEmpty()) {
             item { SectionTitle("Subscriptions", Modifier.rise(5)) }
             item {
-                FrostCard(Modifier.rise(6), onClick = { nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("${st.subs.size} running", style = T.body)
-                            Text("${inr(st.subsMonthly * 12)} a year", style = T.tiny)
-                        }
-                        Text(inr(st.subsMonthly) + "/mo", style = T.num)
+                Row(
+                    Modifier.rise(6).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(C.heat[0])
+                        .press({ nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) }).padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(inr(st.subsMonthly), style = T.big.copy(color = C.heat[3]))
+                        Text("a month on ${st.subs.size} subscriptions", style = T.small)
+                    }
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(inrShort(st.subsMonthly * 12), style = T.h3.copy(color = C.heat[3]))
+                        Text("a year", style = T.tiny)
                     }
                 }
             }
@@ -104,51 +98,82 @@ fun InsightsScreen(s: AppState, nav: Nav) {
     }
 }
 
-/** How much of the salary is kept, split into where the rest goes. */
+/** A category tile with its change against the usual pace as the headline. */
+@Composable
+private fun ChangeTile(c: Change, modifier: Modifier, onClick: () -> Unit) {
+    val st = c.cat.style()
+    val up = c.pct >= 0
+    Column(
+        modifier.clip(RoundedCornerShape(20.dp)).background(st.bg).press(onClick).padding(12.dp),
+        verticalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Icon(st.icon, null, tint = st.fg, modifier = Modifier.size(20.dp))
+        Column {
+            Text((if (up) "+" else "") + "${c.pct}%", style = T.h2.copy(color = if (up) C.warnInk else C.green), maxLines = 1)
+            Text(c.cat.label, style = T.tiny.copy(color = C.ink), maxLines = 1)
+            Text(inrShort(c.now) + " so far", style = T.tiny, maxLines = 1)
+        }
+    }
+}
+
+/** How much of the salary is kept: a dark card with 100 squares, one per percent. */
 @Composable
 private fun KeptCard(income: Long, living: Long, family: Long, investing: Long) {
-    FrostCard(radius = 28.dp, pad = 22.dp) {
-        Column {
-            if (income <= 0) {
-                Text("Average month", style = T.label)
-                CountUp(living, T.hero)
-                Text("No salary messages found yet, so there's nothing to compare against.", style = T.tiny)
-                return@Column
-            }
-            val kept = (income - living - family).coerceAtLeast(0)
-            val pct = (kept * 100 / income).toInt()
-            Text("You keep", style = T.label)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text("$pct%", style = T.hero)
-                Spacer(Modifier.width(10.dp))
-                Text("of ${inr(income)} a month", style = T.small, modifier = Modifier.padding(bottom = 8.dp))
-            }
-            Spacer(Modifier.height(16.dp))
-            val parts = listOf(
-                Triple("Living", living, C.ink),
-                Triple("Family", family, C.peach),
-                Triple("Kept", kept, C.greenBright),
-            ).filter { it.second > 0 }
-            val grow = remember { Animatable(0f) }
-            LaunchedEffect(Unit) { grow.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
-            Row(Modifier.fillMaxWidth().height(12.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                val total = parts.sumOf { it.second }.coerceAtLeast(1)
-                parts.forEach { (_, v, c) ->
-                    Box(Modifier.weight((v.toFloat() / total * grow.value).coerceAtLeast(.001f)).fillMaxSize().clip(CircleShape).background(c))
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            parts.forEach { (label, v, c) ->
-                Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(8.dp).clip(CircleShape).background(c))
-                    Spacer(Modifier.width(8.dp))
-                    Text(label, style = T.small, modifier = Modifier.weight(1f))
-                    Text(inr(v), style = T.num.copy(fontSize = T.small.fontSize))
-                }
-            }
-            if (investing > 0) Text("Of what you keep, about ${inr(investing)} a month goes into investments.", style = T.tiny,
-                modifier = Modifier.padding(top = 8.dp))
+    val onDark = Color.White.copy(alpha = .62f)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(C.ink).padding(22.dp)) {
+        if (income <= 0) {
+            Text("Average month", style = T.label.copy(color = onDark))
+            CountUp(living, T.display.copy(color = Color.White))
+            Text("No salary messages found yet, so there's nothing to compare against.", style = T.tiny.copy(color = onDark))
+            return@Column
         }
+        val kept = (income - living - family).coerceAtLeast(0)
+        val pct = (kept * 100 / income).toInt()
+        Text("You keep", style = T.label.copy(color = onDark))
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text("$pct%", style = T.display.copy(color = Color.White))
+            Spacer(Modifier.width(10.dp))
+            Text("of ${inr(income)}\na month", style = T.small.copy(color = onDark), modifier = Modifier.padding(bottom = 6.dp))
+        }
+        Spacer(Modifier.height(18.dp))
+        val parts = listOf(
+            Triple("Living", living, C.heat[2]),
+            Triple("Family", family, C.today),
+            Triple("Kept", kept, C.greenBright),
+        ).filter { it.second > 0 }
+        val total = parts.sumOf { it.second }.coerceAtLeast(1)
+        // Whole squares per part, largest remainder last so they always add up to 100.
+        val cells = parts.map { (it.second * 100 / total).toInt() }.toMutableList()
+        if (cells.isNotEmpty()) cells[cells.lastIndex] += 100 - cells.sum()
+        val colors = parts.flatMapIndexed { i, p -> List(cells[i]) { p.third } }
+        val grow = remember { Animatable(0f) }
+        LaunchedEffect(Unit) { grow.animateTo(1f, tween(1100, easing = FastOutSlowInEasing)) }
+        Canvas(Modifier.fillMaxWidth().aspectRatio(20f / 5f)) {
+            val g = 3.dp.toPx()
+            val cell = (size.width - g * 19) / 20
+            val lit = (grow.value * 100).toInt()
+            for (i in 0 until 100) {
+                val col = i / 5
+                val row = i % 5
+                drawRoundRect(
+                    if (i < lit) colors.getOrElse(i) { Color.White } else Color.White.copy(alpha = .08f),
+                    topLeft = Offset(col * (cell + g), row * (cell + g)),
+                    size = Size(cell, cell),
+                    cornerRadius = CornerRadius(3.dp.toPx()),
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        parts.forEach { (label, v, c) ->
+            Row(Modifier.padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(c))
+                Spacer(Modifier.width(8.dp))
+                Text(label, style = T.small.copy(color = onDark), modifier = Modifier.weight(1f))
+                Text(inr(v), style = T.num.copy(fontSize = T.small.fontSize, color = Color.White))
+            }
+        }
+        if (investing > 0) Text("Of what you keep, about ${inr(investing)} a month goes into investments.",
+            style = T.tiny.copy(color = onDark), modifier = Modifier.padding(top = 10.dp))
     }
 }
 
