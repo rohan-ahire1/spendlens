@@ -34,9 +34,10 @@ enum class Cat(val label: String, val bucket: Bucket) {
 object Categorizer {
     private val rules: List<Pair<Regex, Cat>> = listOf(
         "cred ?club|credit ?card|card ?bill|cc ?payment|hdfc ?bank ?digital ?cr|amazon ?pay ?credit" to Cat.CARD_BILL,
+        "\\b(?:mom|mother|maa|mummy|papa|dad|father|aai|baba)\\b" to Cat.FAMILY,
         "zepto|blinkit|grofers|bigbasket|instamart|dmart|jiomart|swiggy ?instamart|more retail|reliance fresh|nature.?s basket|milkbasket|country delight" to Cat.GROCERIES,
         "swiggy|zomato|eatsure|box8|faasos" to Cat.FOOD_DELIVERY,
-        "cafe|caf[eé]|restaurant|hotel|bakery|starbucks|mcdonald|domino|kfc|pizza|burger|chai|\\btea\\b|dhaba|bar\\b|brew|biryani|kitchen|foods?\\b" to Cat.EATING_OUT,
+        "cafe|caf[eé]|coffee|restaurant|hotel|bakery|starbucks|mcdonald|domino|kfc|pizza|burger|chai|\\btea\\b|dhaba|bar\\b|brew|biryani|kitchen|foods?\\b" to Cat.EATING_OUT,
         "metro|uber|ola\\b|olacabs|rapido|irctc|redbus|fastag|petrol|fuel|indian ?oil|iocl|hpcl|bpcl|shell|parking|namma yatri|blusmart" to Cat.COMMUTE,
         "google ?play|netflix|spotify|youtube|prime ?video|amazon ?prime|hotstar|jiocinema|apple\\.com|itunes|meta|facebook|openai|chatgpt|anthropic|claude|notion|github|linkedin|sonyliv|zee5|audible|icloud" to Cat.SUBSCRIPTIONS,
         "electricity|bescom|msedcl|mahadiscom|tata ?power|adani|gas\\b|mahanagar|broadband|fibernet|act ?fiber|airtel|jio|vodafone|\\bvi\\b|tata ?play|recharge|bill ?desk|billdesk|insurance|lic\\b" to Cat.BILLS,
