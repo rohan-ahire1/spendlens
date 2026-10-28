@@ -233,15 +233,48 @@ class AskTest {
     @Test fun compareMonths() {
         val qq = q("food delivery this month vs last month")
         assertEquals(Kind.COMPARE, qq.kind)
-        assertEquals(span("2026-09-01", "2026-09-30"), qq.vs)
+        // Month to date meets the same 29 days of September, not all of it.
+        assertEquals(span("2026-09-01", "2026-09-29"), qq.vs)
         val a = ask("food delivery this month vs last month")
         assertEquals(rs(1100), a.value)
-        assertEquals("Food delivery: ₹1,100 1 Oct – today vs ₹700 September. 57% more.", a.sentence)
+        assertEquals("Food delivery: ₹1,100 1–29 Oct vs ₹700 1–29 Sep. 57% more.", a.sentence)
         assertEquals(3, a.txns.size)
     }
 
-    @Test fun compareWithBareLast() = assertEquals(span("2026-09-01", "2026-09-30"), q("uber this month vs last").vs)
-    @Test fun compareWeekWithWeekBefore() = assertEquals(span("2026-10-19", "2026-10-25"), q("spent this week compared to last").vs)
+    @Test fun compareWithBareLast() = assertEquals(span("2026-09-01", "2026-09-29"), q("uber this month vs last").vs)
+    @Test fun compareWeekWithWeekBefore() = assertEquals(span("2026-10-19", "2026-10-22"), q("spent this week compared to last").vs)
+    @Test fun finishedMonthsCompareWhole() =
+        assertEquals(span("2026-08-01", "2026-08-31"), q("spent september vs august").vs)
+    @Test fun compareEarlyInTheMonth() {
+        val on = LocalDate.of(2026, 10, 3)
+        assertEquals(span("2026-09-01", "2026-09-03"), q("spent this month vs last month", on).vs)
+        assertTrue(ask("spent this month vs last month", on).sentence.contains("1–3 Oct vs ₹900 1–3 Sep"))
+    }
+
+    // ---------- Edge cases ----------
+
+    @Test fun afterSomethingNotOverIsUnclear() {
+        assertTrue(AskParser.parse("average daily spend after this month", today, payees) is Parsed.Unclear)
+        assertTrue(AskParser.parse("spent after today", today, payees) is Parsed.Unclear)
+    }
+
+    @Test fun mostInADayIsTheTopDay() {
+        assertEquals(Kind.TOP_DAY, q("what is the most i spent in a day").kind)
+        assertEquals(Kind.TOP_DAY, q("highest spend in a day this month").kind)
+        assertEquals(Kind.AVG_DAY, q("how much do i spend a day").kind)
+    }
+
+    @Test fun payeesMatchOnWordStarts() {
+        val l = listOf(tx("2026-10-10", 900, "Torrent Power"), tx("2026-10-11", 1500, "The Steakhouse"), tx("2026-10-12", 20000, "Rent Landlord"))
+        val p = l.map { it.payee to it.payeeKey }
+        fun sub(s: String) = ((AskParser.parse(s, today, p) as Parsed.Ok).q.subject as Subject.Payee).keys
+        assertEquals(setOf("rent landlord"), sub("how much on rent"))
+        assertEquals(setOf("torrent power"), sub("how much on torrent"))
+        // A typo in a whole word still finds it.
+        assertEquals(setOf("the steakhouse"), sub("how much on steakhose"))
+        assertTrue(AskParser.parse("how much on tea", today, p) !is Parsed.Ok ||
+            (AskParser.parse("how much on tea", today, p) as Parsed.Ok).q.subject !is Subject.Payee)
+    }
 
     @Test fun comparePayees() {
         val qq = q("swiggy vs zomato")
@@ -258,8 +291,20 @@ class AskTest {
     @Test fun receivedInMonth() {
         val qq = q("how much did I receive in october")
         assertTrue(qq.income)
-        assertEquals(rs(300), ask("how much did I receive in october").value)
+        // October's only credit is a refund, which is money back rather than money in.
+        assertEquals(0L, ask("how much did I receive in october").value)
         assertEquals(rs(100000), ask("how much did I receive in september").value)
+        assertEquals(rs(300), ask("refunds in october").value)
+    }
+
+    @Test fun moneyInLeavesOutOwnTransfers() {
+        val l = listOf(
+            tx("2026-10-10", 5000, "Self", debit = false, body = "Rs 5000 credited"),
+            tx("2026-10-12", 2000, "Asha", debit = false, body = "Rs 2000 credited"),
+        )
+        val own: (Txn) -> Cat = { if (it.payee == "Self") Cat.TRANSFER else Cat.RECEIVED }
+        val a = (Ask.reply("how much did I receive in october", today, l, own) { true } as Reply.Done).a
+        assertEquals(rs(2000), a.value)
     }
 
     @Test fun salaryLastMonth() {

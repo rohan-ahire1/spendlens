@@ -80,7 +80,8 @@ object Ask {
      * counts every debit to it, so "investing" or "mom" still answer when they're left out of totals.
      */
     fun filterOf(s: Subject, income: Boolean, catOf: (Txn) -> Cat, counts: (Txn) -> Boolean): (Txn) -> Boolean = when (s) {
-        Subject.All -> if (income) { t -> !t.debit } else counts
+        // Moving money between your own accounts or getting it back isn't money in.
+        Subject.All -> if (income) { t -> !t.debit && catOf(t) != Cat.TRANSFER && catOf(t) != Cat.REFUND } else counts
         is Subject.Cats -> { t -> t.debit != income && catOf(t) in s.cats }
         is Subject.Payee -> { t -> t.debit != income && t.payeeKey in s.keys }
     }
@@ -205,14 +206,23 @@ object Ask {
                     val vs = q.vs!!
                     val l2 = inSpan(vs)
                     val b = l2.sumOf { it.amount }
-                    val ra = rangeText(sp, today)
-                    val rb = rangeText(vs, today)
+                    // Matched stretches of days read best side by side: "1–3 Oct vs 1–3 Sep".
+                    val same = sp.to == today && vs.to.isBefore(sp.from) && vs.days == sp.days
+                    val ra = if (same) days(sp, today) else rangeText(sp, today)
+                    val rb = if (same) days(vs, today) else rangeText(vs, today)
                     Answer(if (q.income) "Received" else "Spent", total, false, "$who: ${inr(total)} $ra vs ${inr(b)} $rb. ${diff(total, b)}",
                         (l + l2).sortedByDescending { it.time }, if (subjAll) (l + l2).sortedByDescending { it.time } else matching,
                         listOf(Bar(ra.cap(), total, inr(total)), Bar(rb.cap(), b, inr(b))))
                 }
             }
         }
+    }
+
+    private fun days(sp: Span, today: LocalDate): String {
+        val (a, b) = sp.from to sp.to
+        if (a.year != b.year || a.month != b.month) return rangeText(sp, today)
+        val m = a.format(mmm) + if (a.year != today.year) " ${a.year}" else ""
+        return if (a == b) "${a.dayOfMonth} $m" else "${a.dayOfMonth}–${b.dayOfMonth} $m"
     }
 
     private fun String.cap() = replaceFirstChar { it.titlecase(L) }

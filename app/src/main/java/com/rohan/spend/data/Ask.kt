@@ -17,7 +17,7 @@ sealed interface Subject {
 
 data class Span(val from: LocalDate, val to: LocalDate) {
     operator fun contains(d: LocalDate) = !d.isBefore(from) && !d.isAfter(to)
-    val days: Long get() = ChronoUnit.DAYS.between(from, to) + 1
+    val days: Long get() = (ChronoUnit.DAYS.between(from, to) + 1).coerceAtLeast(1)
 }
 
 data class Question(
@@ -154,7 +154,10 @@ object AskParser {
     private fun kindOf(r: String): Kind {
         if (countRe.containsMatchIn(r)) return Kind.COUNT
         val per = perRe.find(r)
-        if (avgRe.containsMatchIn(r) || per != null) {
+        val big = bigRe.containsMatchIn(r)
+        val ranked = big || topRe.containsMatchIn(r)
+        // "the most I spent in a day" asks for the top day; "a day" only means an average without "most".
+        if (avgRe.containsMatchIn(r) || per != null && !ranked) {
             if (avgTxnRe.containsMatchIn(r)) return Kind.AVG_PAYMENT
             return when (per?.groupValues?.drop(1)?.firstOrNull { it.isNotEmpty() }) {
                 "day", "daily" -> Kind.AVG_DAY
@@ -162,8 +165,7 @@ object AskParser {
                 else -> Kind.AVG_MONTH
             }
         }
-        val big = bigRe.containsMatchIn(r)
-        if (!big && !topRe.containsMatchIn(r)) return Kind.TOTAL
+        if (!ranked) return Kind.TOTAL
         return when {
             Regex("""\b(day|date)\b""").containsMatchIn(r) -> Kind.TOP_DAY
             Regex("""\bmonth\b""").containsMatchIn(r) -> Kind.TOP_MONTH
@@ -232,7 +234,7 @@ object AskParser {
         val t = squash(phrase)
         if (t.length < 3) return null
         // The bank's part of a UPI handle would match everyone, so only the name side counts.
-        var hit = payees.filter { (n, k) -> t in squash(n) || t in squash(k.substringBefore('@')) }
+        var hit = payees.filter { (n, k) -> startsAWord(n, t) || startsAWord(k.substringBefore('@'), t) }
         if (hit.isEmpty() && t.length >= 4) {
             val room = if (t.length >= 7) 2 else 1
             hit = payees.filter { (n, _) -> lev(squash(n), t) <= room || n.split(' ').any { w -> squash(w).length >= 3 && lev(squash(w), t) <= room } }
@@ -240,6 +242,12 @@ object AskParser {
         if (hit.isEmpty()) return null
         val name = hit.map { it.first }.distinct().singleOrNull() ?: phrase.split(' ').joinToString(" ") { w -> w.replaceFirstChar { it.titlecase(L) } }
         return Subject.Payee(name, hit.map { it.second }.toSet())
+    }
+
+    /** Whether [t] begins at one of [name]'s words: "rent" isn't in "Torrent Power", "power" is. */
+    private fun startsAWord(name: String, t: String): Boolean {
+        val w = name.split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }
+        return w.indices.any { i -> squash(w.drop(i).joinToString("")).startsWith(t) }
     }
 
     private fun subject(phrase: String, payees: List<Pair<String, String>>): Subject? {
@@ -264,6 +272,13 @@ object AskParser {
         return Span(a.from.minusDays(a.days), a.from.minusDays(1))
     }
 
+    /**
+     * [b] cut to as many days as [a] when [a] is still under way, so month-to-date
+     * meets the same days of last month rather than all of it.
+     */
+    fun alike(a: Span, b: Span, today: LocalDate): Span =
+        if (a.to == today && b.to.isBefore(a.from) && b.days > a.days) Span(b.from, b.from.plusDays(a.days - 1)) else b
+
     private val prevWords = setOf("last", "previous", "prior", "before", "usual")
 
     /** Null when the text doesn't read like a question, so plain search should handle it. */
@@ -272,6 +287,8 @@ object AskParser {
         if (s.isBlank()) return null
         val (spans, blanked) = times(s, today)
         if (spans.isEmpty() && !cueRe.containsMatchIn(blanked)) return null
+        // "after this month", "from august to june": nothing to count.
+        if (spans.any { it.from.isAfter(it.to) }) return Parsed.Unclear("That time hasn't happened yet, so there's nothing to count.")
         val income = incomeRe.containsMatchIn(blanked)
         val rest = incomeRe.replace(blanked, " ")
         fun inc(sub: Subject) = income || sub is Subject.Cats && sub.cats.all { it.bucket == Bucket.INCOME }
@@ -283,7 +300,7 @@ object AskParser {
             if (spans.size >= 2) {
                 val phrase = words("$left $right").joinToString(" ")
                 val sub = subject(phrase, payees) ?: return unknown(phrase)
-                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], spans[1]))
+                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], alike(spans[0], spans[1], today)))
             }
             var lw = words(left)
             if (lw.isEmpty() && Regex("""\band\b""").containsMatchIn(right)) {
@@ -294,7 +311,7 @@ object AskParser {
             if (spans.size == 1 && (rw.isEmpty() || rw.all { it in prevWords })) {
                 val phrase = lw.joinToString(" ")
                 val sub = subject(phrase, payees) ?: return unknown(phrase)
-                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], before(spans[0])))
+                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], alike(spans[0], before(spans[0]), today)))
             }
             if (lw.isNotEmpty() && rw.isNotEmpty()) {
                 val a = subject(lw.joinToString(" "), payees) ?: return unknown(lw.joinToString(" "))
