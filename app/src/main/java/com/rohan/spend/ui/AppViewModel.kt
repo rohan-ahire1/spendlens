@@ -7,6 +7,8 @@ import android.net.Uri
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.rohan.spend.bg.Widget
+import com.rohan.spend.bg.monthLeft
 import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Categorizer
 import com.rohan.spend.data.Counting
@@ -27,6 +29,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -133,6 +139,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         if (hasPermission()) start()
+        // Keeps the home-screen widget on the numbers this screen shows, after scans and after edits.
+        viewModelScope.launch(Dispatchers.Default) {
+            state.filter { it.stage == Stage.READY && !it.refreshing }.map { it.monthLeft() }.distinctUntilChanged()
+                .collectLatest { runCatching { Widget.push(getApplication(), it) } }
+        }
         viewModelScope.launch {
             while (true) {
                 delay(msToMidnight())

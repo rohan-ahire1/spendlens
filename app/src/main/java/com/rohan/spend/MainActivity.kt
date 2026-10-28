@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import com.rohan.spend.bg.Alarms
 import com.rohan.spend.ui.AppViewModel
 import com.rohan.spend.ui.SpendApp
 
@@ -27,6 +28,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        Alarms.schedule(this)
         setContent { SpendApp(vm) { askSms.launch(Manifest.permission.READ_SMS) } }
     }
 
