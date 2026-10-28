@@ -84,4 +84,17 @@ class RecapTest {
         assertNull(r.biggest)
         assertEquals(30, r.noSpend)
     }
+
+    @Test fun fullyRefundedPaymentsDontCount() {
+        // Netted copies come in at 0 once refunded in full.
+        val refunded = txn("2026-09-12", 1500, "Zomato").copy(amount = 0)
+        val r = recap(history + september + refunded, counts, catOf, sep, today)
+        assertEquals(6, r.count)
+        assertEquals(19_400_00L, r.spent)
+    }
+
+    @Test fun targetIsMarked() {
+        assertEquals(true, recap(history + september, counts, catOf, sep, today, usual = 8_000_00).isTarget)
+        assertEquals(false, recap(history + september, counts, catOf, sep, today).isTarget)
+    }
 }

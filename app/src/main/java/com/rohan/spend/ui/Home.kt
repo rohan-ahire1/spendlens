@@ -99,7 +99,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 }
             }
         }
-        item { Headline(Modifier.rise(0), ym, current, spent, usual) }
+        item { Headline(Modifier.rise(0), ym, current, spent, usual, s.target > 0) }
         if (current && showRecap) item {
             val last = remember(st) { st.dailyIn(lastMonth).values.sum() }
             RecapNudge(lastMonth, last, Modifier.rise(1).padding(top = 16.dp), { nav.push(Route.Recap(lastMonth.toString())) }, { vm.closeRecap(lastMonth) })
@@ -141,7 +141,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
 }
 
 @Composable
-private fun Headline(modifier: Modifier, ym: YearMonth, current: Boolean, spent: Long, usual: Long) {
+private fun Headline(modifier: Modifier, ym: YearMonth, current: Boolean, spent: Long, usual: Long, isTarget: Boolean) {
     Row(modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             val name = ym.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())
@@ -154,7 +154,7 @@ private fun Headline(modifier: Modifier, ym: YearMonth, current: Boolean, spent:
                 (if (pct >= 0) "+" else "−") + "${kotlin.math.abs(pct)}%",
                 style = T.label.copy(color = if (pct > 0) C.warnInk else C.green, fontWeight = FontWeight.SemiBold),
             )
-            Text("vs usual ${inr(usual)}", style = T.tiny)
+            Text("vs ${if (isTarget) "target" else "usual"} ${inr(usual)}", style = T.tiny)
         }
     }
 }

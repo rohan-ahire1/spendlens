@@ -25,6 +25,8 @@ data class Recap(
     val place: PlaceTotal?,
     /** Spend on each day of the month, the 1st first, up to [days]. */
     val daily: List<Long>,
+    /** [usual] is the user's target rather than history. */
+    val isTarget: Boolean = false,
 ) {
     val vsUsual: Int? get() = if (usual > 0) ((spent - usual) * 100 / usual).toInt() else null
 }
@@ -37,7 +39,8 @@ fun recap(
     txns: List<Txn>, counts: (Txn) -> Boolean, catOf: (Txn) -> Cat, ym: YearMonth,
     today: LocalDate = LocalDate.now(), usual: Long = 0,
 ): Recap {
-    val counted = txns.filter(counts)
+    // A fully refunded payment cost nothing, so it isn't one of the month's payments.
+    val counted = txns.filter { counts(it) && (!it.debit || it.amount > 0) }
     val byMonth = counted.groupBy { it.month() }
     val first = txns.minOfOrNull { it.month() } ?: ym
     val l = byMonth[ym].orEmpty()
@@ -70,6 +73,6 @@ fun recap(
     return Recap(
         month = ym, spent = spent, usual = if (usual > 0) usual else median, count = l.size,
         top = cats.firstOrNull(), shift = shift, noSpend = daily.count { it == 0L }, days = last,
-        biggest = l.maxByOrNull { it.amount }, place = place, daily = daily,
+        biggest = l.maxByOrNull { it.amount }, place = place, daily = daily, isTarget = usual > 0,
     )
 }

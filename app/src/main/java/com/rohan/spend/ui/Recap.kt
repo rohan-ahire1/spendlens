@@ -118,14 +118,15 @@ fun RecapCard(r: Recap) {
         Text(inr(r.spent), style = T.display.copy(color = Color.White), maxLines = 1)
         r.vsUsual?.let { pct ->
             val more = pct > 0
+            val word = if (r.isTarget) "target" else "usual"
             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (pct == 0) "Right on usual" else "${abs(pct)}% ${if (more) "more" else "less"} than usual",
+                    if (pct == 0) "Right on $word" else "${abs(pct)}% ${if (more) "more" else "less"} than $word",
                     style = T.tiny.copy(color = if (more) C.peachSoft else C.greenBright, fontWeight = FontWeight.SemiBold),
                     modifier = Modifier.clip(CircleShape).background(Color.White.copy(alpha = .08f)).padding(horizontal = 10.dp, vertical = 4.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("usual ${inr(r.usual)}", style = T.tiny.copy(color = onDark))
+                Text("$word ${inr(r.usual)}", style = T.tiny.copy(color = onDark))
             }
         }
         Spacer(Modifier.height(20.dp))
