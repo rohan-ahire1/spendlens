@@ -178,7 +178,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                     Route.Search -> SearchScreen(s, nav)
                     is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
                     Route.Hidden -> HiddenScreen(s, vm, nav)
-                    is Route.Recap -> RecapScreen(java.time.YearMonth.parse(r.month), s, nav)
+                    is Route.Recap -> RecapScreen(java.time.YearMonth.parse(r.month), s, nav, vm::say)
                 }
             }
         }

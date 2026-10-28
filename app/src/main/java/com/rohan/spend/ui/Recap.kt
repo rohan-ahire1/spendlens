@@ -66,13 +66,22 @@ fun YearMonth.monthName(): String = month.getDisplayName(JTextStyle.FULL, Locale
 
 /** A month told as one tall card, with a button to share it as a picture. */
 @Composable
-fun RecapScreen(ym: YearMonth, s: AppState, nav: Nav) {
+fun RecapScreen(ym: YearMonth, s: AppState, nav: Nav, say: (String) -> Unit = {}) {
     val st = s.stats
     val r = remember(st, ym, s.target) { recap(s.netted, st::counts, s::catOf, ym, s.today, usual = s.target) }
     val layer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
-    val share = { scope.launch { shareImage(ctx, layer.toImageBitmap(), ym) }; Unit }
+    val share = {
+        scope.launch {
+            // A full disk, a missing share folder or no app to share to all land here.
+            val ok = try { shareImage(ctx, layer.toImageBitmap(), ym); true }
+            catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) { false }
+            if (!ok) say("Couldn't share the recap. Try again.")
+        }
+        Unit
+    }
     LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
         item { TopBar("${ym.monthName()} recap", nav::pop) { RoundButton(Icons.Rounded.Share, "Share", share) } }
         item {
