@@ -40,6 +40,11 @@ class Prefs(context: Context) {
         get() = p.getLong("target", 0)
         set(v) = p.edit().putLong("target", v).apply()
 
+    /** Months whose recap card the user closed on Home, as "2026-09". */
+    var recapsClosed: Set<String>
+        get() = p.getStringSet("recapsClosed", emptySet())!!
+        set(v) = p.edit().putStringSet("recapsClosed", v).apply()
+
     fun clear() = p.edit().clear().apply()
 
     // Tab and newline never appear in keys we write, so a flat string is enough.
