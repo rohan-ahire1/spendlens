@@ -56,23 +56,23 @@ object C {
 }
 
 @OptIn(ExperimentalTextApi::class)
-private fun inter(w: Int) = Font(R.font.inter, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+private fun plex(w: Int) = Font(R.font.ibm_plex_sans, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
 
-/** Inter, the same face Linear uses, from one bundled variable font. */
-val Inter = FontFamily(inter(400), inter(500), inter(600), inter(700))
+/** IBM Plex Sans, from one bundled variable font. */
+val Plex = FontFamily(plex(400), plex(500), plex(600), plex(700))
 
 object T {
     private const val TNUM = "tnum"
-    val hero = TextStyle(fontFamily = Inter, fontSize = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.6).sp, color = C.ink, fontFeatureSettings = TNUM)
-    val big = TextStyle(fontFamily = Inter, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.2).sp, color = C.ink, lineHeight = 37.sp)
-    val title = TextStyle(fontFamily = Inter, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.9).sp, color = C.ink)
-    val h2 = TextStyle(fontFamily = Inter, fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, color = C.ink)
-    val h3 = TextStyle(fontFamily = Inter, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = C.ink)
-    val body = TextStyle(fontFamily = Inter, fontSize = 15.sp, color = C.ink, letterSpacing = (-0.1).sp)
+    val hero = TextStyle(fontFamily = Plex, fontSize = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.6).sp, color = C.ink, fontFeatureSettings = TNUM)
+    val big = TextStyle(fontFamily = Plex, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.2).sp, color = C.ink, lineHeight = 37.sp)
+    val title = TextStyle(fontFamily = Plex, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.9).sp, color = C.ink)
+    val h2 = TextStyle(fontFamily = Plex, fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, color = C.ink)
+    val h3 = TextStyle(fontFamily = Plex, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = C.ink)
+    val body = TextStyle(fontFamily = Plex, fontSize = 15.sp, color = C.ink, letterSpacing = (-0.1).sp)
     val num = body.copy(fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM)
-    val label = TextStyle(fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = C.muted)
-    val small = TextStyle(fontFamily = Inter, fontSize = 13.sp, color = C.muted, lineHeight = 18.sp)
-    val tiny = TextStyle(fontFamily = Inter, fontSize = 12.sp, color = C.subtle)
+    val label = TextStyle(fontFamily = Plex, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = C.muted)
+    val small = TextStyle(fontFamily = Plex, fontSize = 13.sp, color = C.muted, lineHeight = 18.sp)
+    val tiny = TextStyle(fontFamily = Plex, fontSize = 12.sp, color = C.subtle)
 }
 
 data class CatStyle(val icon: ImageVector, val fg: Color, val bg: Color)

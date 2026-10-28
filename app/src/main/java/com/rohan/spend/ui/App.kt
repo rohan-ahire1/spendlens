@@ -50,11 +50,11 @@ fun SpendApp(vm: AppViewModel, onAskPermission: () -> Unit) {
     val s by vm.state.collectAsStateWithLifecycle()
     val base = Typography()
     val type = Typography(
-        headlineSmall = base.headlineSmall.copy(fontFamily = Inter, fontWeight = FontWeight.SemiBold),
-        bodyLarge = base.bodyLarge.copy(fontFamily = Inter),
-        bodyMedium = base.bodyMedium.copy(fontFamily = Inter),
-        bodySmall = base.bodySmall.copy(fontFamily = Inter),
-        labelLarge = base.labelLarge.copy(fontFamily = Inter),
+        headlineSmall = base.headlineSmall.copy(fontFamily = Plex, fontWeight = FontWeight.SemiBold),
+        bodyLarge = base.bodyLarge.copy(fontFamily = Plex),
+        bodyMedium = base.bodyMedium.copy(fontFamily = Plex),
+        bodySmall = base.bodySmall.copy(fontFamily = Plex),
+        labelLarge = base.labelLarge.copy(fontFamily = Plex),
     )
     MaterialTheme(typography = type) { ProvideTextStyle(T.body) { Root(vm, s, onAskPermission) } }
 }
