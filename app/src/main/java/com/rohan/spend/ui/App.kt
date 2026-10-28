@@ -31,6 +31,7 @@ sealed interface Route {
     data class Tabbed(val tab: Tab) : Route
     data class TxnDetail(val id: Long) : Route
     data class Category(val cat: Cat) : Route
+    data class Day(val epochDay: Long) : Route
     data object Search : Route
 }
 
@@ -108,6 +109,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                 is Route.TxnDetail -> s.txns.firstOrNull { it.id == r.id }
                     ?.let { TxnScreen(it, s, vm, nav) } ?: LaunchedEffect(r) { nav.pop() }
                 is Route.Category -> CategoryScreen(r.cat, s, nav)
+                is Route.Day -> DayScreen(java.time.LocalDate.ofEpochDay(r.epochDay), s, nav)
                 Route.Search -> SearchScreen(s, nav)
             }
         }
