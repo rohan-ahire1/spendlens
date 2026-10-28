@@ -301,7 +301,7 @@ fun TxnRow(t: Txn, cat: Cat, note: String?, onClick: () -> Unit, showDay: Boolea
             val sub = buildString {
                 append(cat.label)
                 append(" · ")
-                append(if (showDay) dayLabel(t.date()) else t.timeLabel())
+                append(if (showDay) dayLabel(t.date(), LocalToday.current) else t.timeLabel())
                 if (!note.isNullOrBlank()) append(" · ").append(note)
             }
             Text(sub, style = T.tiny, maxLines = 1, overflow = TextOverflow.Ellipsis)

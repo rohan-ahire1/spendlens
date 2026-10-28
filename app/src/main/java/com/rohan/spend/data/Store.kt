@@ -58,18 +58,38 @@ class Prefs(context: Context) {
     var budgets: Map<Cat, Long>
         get() = readMap("budgets").mapNotNull { (k, v) -> runCatching { Cat.valueOf(k) to v.toLong() }.getOrNull() }.toMap()
         set(v) = writeMap("budgets", v.mapKeys { it.key.name }.mapValues { it.value.toString() })
+
+    /** Payment id → how it's split, as "people,mine". */
+    var splits: Map<Long, Split>
+        get() = readMap("splits").mapNotNull { (k, v) ->
+            val id = k.toLongOrNull()
+            val n = v.substringBefore(',').toIntOrNull()
+            val mine = v.substringAfter(',').toLongOrNull()
+            if (id == null || n == null || mine == null) null else id to Split(n, mine)
+        }.toMap()
+        set(v) = writeMap("splits", v.entries.associate { it.key.toString() to "${it.value.people},${it.value.mine}" })
+
+    /** Credit id → the split payment it paid back. */
+    var paybacks: Map<Long, Long>
+        get() = readMap("paybacks").mapNotNull { (k, v) -> k.toLongOrNull()?.let { c -> v.toLongOrNull()?.let { c to it } } }.toMap()
+        set(v) = writeMap("paybacks", v.entries.associate { it.key.toString() to it.value.toString() })
+
+    /** "credit:payment" pairs the user said weren't a payback, so we stop asking. */
+    var notPaybacks: Set<String>
+        get() = p.getStringSet("notPaybacks", emptySet())!!.toSet()
+        set(v) = p.edit().putStringSet("notPaybacks", v).apply()
 }
 
 object SmsSource {
-    /** Reads the inbox newest first and reports progress as it goes. */
-    fun read(context: Context, monthsBack: Long = 18, onProgress: (done: Int, total: Int, found: List<Txn>) -> Unit): List<Txn> {
+    /** Reads the inbox newest first and reports progress as it goes. [afterId] skips SMS already read. */
+    fun read(context: Context, monthsBack: Long = 18, afterId: Long = 0, onProgress: (done: Int, total: Int, found: List<Txn>) -> Unit): List<Txn> {
         val since = System.currentTimeMillis() - monthsBack * 31L * 24 * 3600 * 1000
         val out = ArrayList<Txn>()
         context.contentResolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
             arrayOf(Telephony.Sms._ID, Telephony.Sms.ADDRESS, Telephony.Sms.BODY, Telephony.Sms.DATE),
-            "${Telephony.Sms.DATE} > ?",
-            arrayOf(since.toString()),
+            "${Telephony.Sms.DATE} > ? AND ${Telephony.Sms._ID} > ?",
+            arrayOf(since.toString(), afterId.toString()),
             "${Telephony.Sms.DATE} DESC",
         )?.use { c ->
             val total = c.count

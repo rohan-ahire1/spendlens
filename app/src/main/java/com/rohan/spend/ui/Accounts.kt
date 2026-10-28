@@ -58,6 +58,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.style.TextOverflow
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.inr
+import com.rohan.spend.data.groupIndian
+import androidx.compose.material3.CircularProgressIndicator
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -122,7 +124,8 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                     Setting("Export to CSV", "${s.visible.size} transactions", onClick = { export.launch("spend-${LocalDate.now()}.csv") }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
-                    Setting("Reset my edits", "Categories, notes, budgets, hidden items and settings", onClick = { confirmReset = true }) {}
+                    Setting("Reset my edits", "Categories, notes, budgets, splits, hidden items and settings", onClick = { confirmReset = true }) {}
+                    RescanRow(s, vm)
                 }
             }
         }
@@ -155,7 +158,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset your edits?") },
-            text = { Text("Your categories, notes, budgets, hidden items and settings go back to default. Your messages aren't touched.") },
+            text = { Text("Your categories, notes, budgets, splits, hidden items and settings go back to default. Your messages aren't touched.") },
             confirmButton = { TextButton({ vm.resetEdits(); confirmReset = false }) { Text("Reset", color = C.red) } },
             dismissButton = { TextButton({ confirmReset = false }) { Text("Cancel", color = C.muted) } },
             containerColor = Color.White,
@@ -296,5 +299,17 @@ private fun Setting(title: String, sub: String?, onClick: (() -> Unit)? = null, 
         }
         Spacer(Modifier.width(10.dp))
         trailing()
+    }
+}
+
+@Composable
+private fun RescanRow(s: AppState, vm: AppViewModel) {
+    val sub = when {
+        !s.rescanning -> "Start fresh if something looks missing"
+        s.total > 0 -> "Reading ${groupIndian(s.done.toLong())} of ${groupIndian(s.total.toLong())}"
+        else -> "Reading…"
+    }
+    Setting("Rescan all messages", sub, onClick = if (s.rescanning) null else vm::fullRescan) {
+        if (s.rescanning) CircularProgressIndicator(Modifier.size(20.dp), color = C.ink, strokeWidth = 2.dp)
     }
 }

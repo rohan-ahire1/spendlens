@@ -76,6 +76,7 @@ fun InsightsScreen(s: AppState, nav: Nav) {
     ) {
         item { TabHeader("Insights", nav) }
         item { Box(Modifier.rise(0)) { KeptCard(st.income, st.avgLiving, if (s.excludeFamily) st.avgFamily else 0L, investing) } }
+        owedSection(s, nav)
         item { SectionTitle("Living cost by month", Modifier.rise(1)) }
         item {
             FrostCard(Modifier.rise(2)) { MonthBars(months, s.usual(), C.heat[3]) }
@@ -98,7 +99,7 @@ fun InsightsScreen(s: AppState, nav: Nav) {
         item { FrostCard(Modifier.rise(8), pad = 16.dp) { WhenYouSpend(habits) } }
         item {
             Row(Modifier.rise(9).padding(top = 12.dp).fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val today = java.time.LocalDate.now()
+                val today = s.today
                 FactTile(
                     Modifier.weight(1f).fillMaxHeight(), C.green.copy(alpha = .1f), C.green,
                     "${st.noSpendDays}", if (st.noSpendDays == 1) "day without spending" else "days without spending",

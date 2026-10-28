@@ -11,7 +11,14 @@ import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Categorizer
 import com.rohan.spend.data.Counting
 import com.rohan.spend.data.Prefs
+import com.rohan.spend.data.Refunds
+import com.rohan.spend.data.Transfers
 import com.rohan.spend.data.SmsSource
+import com.rohan.spend.data.Snapshot
+import com.rohan.spend.data.Split
+import com.rohan.spend.data.Splits
+import com.rohan.spend.data.TxnCache
+import com.rohan.spend.data.ids
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
@@ -24,6 +31,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZonedDateTime
 
 enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
 
@@ -45,13 +56,53 @@ data class AppState(
     val refreshing: Boolean = false,
     val budgets: Map<Cat, Long> = emptyMap(),
     val recapsClosed: Set<String> = emptySet(),
+    val rescanning: Boolean = false,
+    /** The date every screen treats as today. The VM moves it on at midnight and on resume. */
+    val today: LocalDate = LocalDate.now(),
+    val splits: Map<Long, Split> = emptyMap(),
+    /** Credit id → the split payment it paid back. */
+    val paybacks: Map<Long, Long> = emptyMap(),
+    val notPaybacks: Set<String> = emptySet(),
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
-    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) { txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Categorizer.auto(t) }
+    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) {
+        txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Cat.TRANSFER.takeIf { t.id in transfers } ?: Categorizer.auto(t)
+    }
     val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
-    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills)) }
+    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today, ::net) }
     fun usual(): Long = if (target > 0) target else stats.usualMonth
+
+    val byId: Map<Long, Txn> by lazy { txns.associateBy { it.id } }
+    /** Refund id → the payment it gives money back for. */
+    val refundOf: Map<Long, Long> by lazy { Refunds.match(visible) { catOf(it) == Cat.REFUND } }
+    /** Payment id → its refunds, oldest first. */
+    val refundsOf: Map<Long, List<Txn>> by lazy {
+        refundOf.entries.groupBy({ it.value }, { byId.getValue(it.key) }).mapValues { e -> e.value.sortedBy { it.time } }
+    }
+    /** What a payment counts for in totals. Credits are left as they are. */
+    fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, splits[t.id]?.mine, refunded(t))
+    private fun refunded(t: Txn): Long = refundsOf[t.id]?.sumOf { it.amount } ?: 0
+    /** Each side of a move between the user's own accounts → the other side. */
+    val transfers: Map<Long, Long> by lazy { Transfers.find(txns) { Categorizer.auto(it) == Cat.REFUND } }
+
+    /** Split payment id → the paybacks confirmed for it, oldest first. */
+    val paidBack: Map<Long, List<Txn>> by lazy {
+        paybacks.entries.mapNotNull { (c, p) -> byId[c]?.let { p to it } }.groupBy({ it.first }, { it.second })
+            .mapValues { e -> e.value.sortedBy { it.time } }
+    }
+    fun owed(t: Txn): Long = splits[t.id]?.let { Splits.owed(t.amount, it, refunded(t), paidBack[t.id]?.sumOf { c -> c.amount } ?: 0) } ?: 0
+    /** Money in that looks like someone paying back their share of [t]. */
+    fun paybackHints(t: Txn): List<Txn> {
+        val sp = splits[t.id] ?: return emptyList()
+        val pool = visible.filter { !it.debit && catOf(it) == Cat.RECEIVED && it.id !in paybacks && "${it.id}:${t.id}" !in notPaybacks }
+        return Splits.candidates(t, sp, owed(t), pool)
+    }
+    /** Split payments someone still owes on, newest first, with what's owed. */
+    val owedToYou: List<Pair<Txn, Long>> by lazy {
+        splits.keys.mapNotNull { byId[it] }.filter { it.id !in hidden }.map { it to owed(it) }.filter { it.second > 0 }
+            .sortedByDescending { it.first.time }
+    }
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -59,9 +110,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(fromPrefs(AppState()))
     val state: StateFlow<AppState> = _state
     private var scanJob: Job? = null
+    private val cacheFile = File(app.filesDir, "txns.bin")
+    /** Highest SMS _ID already read, or -1 when there's no cache and everything must be read. */
+    private var maxSmsId = -1L
 
     init {
-        if (hasPermission()) scan(firstTime = true)
+        if (hasPermission()) start()
+        viewModelScope.launch {
+            while (true) {
+                delay(msToMidnight())
+                rollDate()
+            }
+        }
     }
 
     private fun fromPrefs(s: AppState) = s.copy(
@@ -75,38 +135,64 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         target = prefs.target,
         budgets = prefs.budgets,
         recapsClosed = prefs.recapsClosed,
+        splits = prefs.splits,
+        paybacks = prefs.paybacks,
+        notPaybacks = prefs.notPaybacks,
     )
 
     fun hasPermission() = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.READ_SMS) ==
         PackageManager.PERMISSION_GRANTED
 
     fun onPermission(granted: Boolean) {
-        if (granted) scan(firstTime = true)
+        if (granted) start()
     }
 
     fun onResume() {
+        rollDate()
         val s = _state.value
-        if (s.stage == Stage.NEEDS_PERMISSION && hasPermission()) scan(firstTime = true)
+        if (s.stage == Stage.NEEDS_PERMISSION && hasPermission()) start()
         else if (s.stage == Stage.READY && s.autoRefresh) scan(firstTime = false)
     }
 
     fun refresh() = scan(firstTime = false)
 
-    private fun scan(firstTime: Boolean) {
+    /** Shows the saved transactions straight away and only reads what's new; the scan screen is for the very first run. */
+    private fun start() {
+        if (maxSmsId < 0) {
+            // A small file read on the main thread, so the first frame is the real app, not a flash of the scan screen.
+            TxnCache.load(cacheFile)?.let { c ->
+                maxSmsId = c.maxId
+                _state.update { it.copy(stage = Stage.READY, txns = c.txns, foundCount = c.txns.size) }
+            }
+        }
+        if (maxSmsId < 0) scan(firstTime = true) else if (_state.value.autoRefresh) scan(firstTime = false)
+    }
+
+    private fun scan(firstTime: Boolean, full: Boolean = false) {
         if (scanJob?.isActive == true) return
         val showScreen = firstTime && _state.value.txns.isEmpty()
-        _state.update { it.copy(stage = if (showScreen) Stage.SCANNING else it.stage, refreshing = !showScreen) }
+        val known = if (full) -1L else maxSmsId
+        _state.update { it.copy(stage = if (showScreen) Stage.SCANNING else it.stage, refreshing = !showScreen, rescanning = full) }
         scanJob = viewModelScope.launch {
             val started = System.currentTimeMillis()
-            val txns = withContext(Dispatchers.IO) {
-                SmsSource.read(getApplication()) { done, total, found ->
+            val app = getApplication<Application>()
+            val snap = withContext(Dispatchers.IO) {
+                // Taken before reading, so a message that lands mid-scan is picked up next time rather than skipped.
+                val alive = SmsSource.ids(app)
+                val top = alive.maxOrNull() ?: 0L
+                // IDs going backwards means the inbox was rebuilt (restore, new phone), so read it all again.
+                val whole = known < 0 || top < known
+                val read = SmsSource.read(app, afterId = if (whole) 0 else known) { done, total, found ->
                     _state.update { it.copy(done = done, total = total, justFound = found.reversed()) }
                 }
+                val txns = if (whole) read else TxnCache.merge(_state.value.txns, alive, read)
+                Snapshot(if (whole) top else maxOf(top, known), txns).also { runCatching { TxnCache.save(cacheFile, it) } }
             }
-            _state.update { it.copy(foundCount = txns.size) }
+            maxSmsId = snap.maxId
+            _state.update { it.copy(foundCount = snap.txns.size) }
             // Let the scan animation land rather than flashing past.
             if (showScreen) delay((1800 - (System.currentTimeMillis() - started)).coerceAtLeast(0))
-            _state.update { it.copy(stage = Stage.READY, txns = txns, refreshing = false) }
+            _state.update { it.copy(stage = Stage.READY, txns = snap.txns, refreshing = false, rescanning = false) }
         }
     }
 
@@ -241,5 +327,56 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val v = _state.value.recapsClosed + month.toString()
         prefs.recapsClosed = v
         _state.update { it.copy(recapsClosed = v) }
+    }
+
+    /** Reads the whole inbox again rather than only what's new. Wired to "Rescan all messages". */
+    fun fullRescan() {
+        viewModelScope.launch {
+            scanJob?.join()
+            scan(firstTime = false, full = true)
+        }
+    }
+
+    /** Moves "today" on when the date has changed, which rebuilds Stats for the new day and month. */
+    private fun rollDate() {
+        val now = LocalDate.now()
+        if (now != _state.value.today) _state.update { it.copy(today = now) }
+    }
+
+    // A second past midnight, so LocalDate.now() has surely turned over. Doze can delay it; onResume catches that.
+    private fun msToMidnight(): Long {
+        val now = ZonedDateTime.now()
+        return Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone)).toMillis() + 1000
+    }
+
+    /** Null removes the split; its paybacks go with it. */
+    fun setSplit(t: Txn, split: Split?) {
+        val s = _state.value
+        val splits = if (split == null) s.splits - t.id else s.splits + (t.id to split)
+        val paybacks = if (split == null) s.paybacks.filterValues { it != t.id } else s.paybacks
+        prefs.splits = splits
+        prefs.paybacks = paybacks
+        _state.update { it.copy(splits = splits, paybacks = paybacks) }
+    }
+
+    fun confirmPayback(credit: Txn, payment: Txn) {
+        val p = _state.value.paybacks + (credit.id to payment.id)
+        prefs.paybacks = p
+        _state.update { it.copy(paybacks = p) }
+    }
+
+    fun rejectPayback(credit: Txn, payment: Txn) {
+        val n = _state.value.notPaybacks + "${credit.id}:${payment.id}"
+        prefs.notPaybacks = n
+        _state.update { it.copy(notPaybacks = n) }
+    }
+
+    fun unlinkPayback(credit: Txn) {
+        val s = _state.value
+        val p = s.paybacks - credit.id
+        val n = s.paybacks[credit.id]?.let { s.notPaybacks + "${credit.id}:$it" } ?: s.notPaybacks
+        prefs.paybacks = p
+        prefs.notPaybacks = n
+        _state.update { it.copy(paybacks = p, notPaybacks = n) }
     }
 }

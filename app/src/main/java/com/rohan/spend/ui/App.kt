@@ -16,6 +16,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -131,7 +132,7 @@ private fun Root(vm: AppViewModel, s: AppState, onAskPermission: () -> Unit) {
             when (stage) {
                 Stage.NEEDS_PERMISSION -> OnboardingScreen(onAskPermission)
                 Stage.SCANNING -> ScanScreen(s)
-                Stage.READY -> Main(vm, s)
+                Stage.READY -> CompositionLocalProvider(LocalToday provides s.today) { Main(vm, s) }
             }
         }
     }
