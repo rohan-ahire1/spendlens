@@ -1,5 +1,16 @@
 package com.rohan.spend.ui
 
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.IntrinsicSize
+import com.rohan.spend.data.PlaceTotal
+import com.rohan.spend.data.Habits
+import com.rohan.spend.data.CatTotal
+import com.rohan.spend.data.Cat
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -56,6 +67,7 @@ private val monthLong = DateTimeFormatter.ofPattern("MMMM yyyy")
 fun InsightsScreen(s: AppState, nav: Nav) {
     val st = s.stats
     val months = remember(st) { st.sinceHistory(st.monthly(12)) }
+    val habits = remember(st) { st.habits() }
     val investing = remember(st) { st.avgMonthly { it.debit && s.catOf(it).bucket == Bucket.INVESTING } }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
@@ -76,11 +88,42 @@ fun InsightsScreen(s: AppState, nav: Nav) {
                 }
             }
         }
+        val cats = st.avgByCat
+        if (cats.isNotEmpty()) {
+            item { SectionTitle("A usual month", Modifier.rise(5)) { Text("last 3 months", style = T.tiny) } }
+            item { FrostCard(Modifier.rise(6), pad = 16.dp) { UsualMonth(cats) { nav.push(Route.Category(it)) } } }
+        }
+        item { SectionTitle("When you spend", Modifier.rise(7)) { Text("last 90 days", style = T.tiny) } }
+        item { FrostCard(Modifier.rise(8), pad = 16.dp) { WhenYouSpend(habits) } }
+        item {
+            Row(Modifier.rise(9).padding(top = 12.dp).fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val today = java.time.LocalDate.now()
+                FactTile(
+                    Modifier.weight(1f).fillMaxHeight(), C.green.copy(alpha = .1f), C.green,
+                    "${st.noSpendDays}", if (st.noSpendDays == 1) "day without spending" else "days without spending",
+                    "out of ${today.dayOfMonth} this month",
+                )
+                FactTile(
+                    Modifier.weight(1f).fillMaxHeight(), C.warnBg, C.warnInk,
+                    inrShort(habits.smallTotal), "on ${habits.smallCount} payments under ₹200",
+                    "in the last 30 days",
+                )
+            }
+        }
+        val places = st.topPlaces()
+        if (places.isNotEmpty()) {
+            item { SectionTitle("Where you go most", Modifier.rise(10)) { Text("last 90 days", style = T.tiny) } }
+            item {
+                FrostCard(Modifier.rise(11), pad = 14.dp) {
+                    Column { places.forEachIndexed { i, p -> PlaceRow(i + 1, p, places[0].total) { nav.push(Route.Category(p.cat)) } } }
+                }
+            }
+        }
         if (st.subs.isNotEmpty()) {
-            item { SectionTitle("Subscriptions", Modifier.rise(5)) }
+            item { SectionTitle("Subscriptions", Modifier.rise(12)) }
             item {
                 Row(
-                    Modifier.rise(6).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(C.heat[0])
+                    Modifier.rise(13).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(C.heat[0])
                         .press({ nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) }).padding(20.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -95,6 +138,123 @@ fun InsightsScreen(s: AppState, nav: Nav) {
                 }
             }
         }
+    }
+}
+
+/** Categories in a usual month, each bar sized against the biggest. Shows the top six, then the rest folded. */
+@Composable
+private fun UsualMonth(cats: List<CatTotal>, open: (Cat) -> Unit) {
+    val top = cats.take(6)
+    val rest = cats.drop(6).sumOf { it.total }
+    val max = cats[0].total.coerceAtLeast(1)
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        top.forEachIndexed { i, c ->
+            val style = c.cat.style()
+            Row(Modifier.fillMaxWidth().press({ open(c.cat) }), verticalAlignment = Alignment.CenterVertically) {
+                CatIcon(c.cat, 34.dp)
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Row {
+                        Text(c.cat.label, style = T.small.copy(color = C.ink, fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                        Text(inr(c.total), style = T.num.copy(fontWeight = FontWeight.Bold))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    GrowBar(c.total.toFloat() / max, style.fg, delayMs = 150L + 50L * i)
+                }
+            }
+        }
+        if (rest > 0) Text("Everything else ${inr(rest)}", style = T.tiny)
+    }
+}
+
+private val dayNames = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+private val parts = listOf("Morning", "Afternoon", "Evening", "Night")
+
+/** Average spend on each weekday as columns, then how the day splits from morning to night. */
+@Composable
+private fun WhenYouSpend(h: Habits) {
+    val max = h.weekday.max().coerceAtLeast(1)
+    val peak = h.weekday.indexOf(h.weekday.max())
+    val low = h.weekday.indexOf(h.weekday.min())
+    Column {
+        if (h.weekday[peak] > 0) {
+            Text("${dayNames[peak]}s cost the most", style = T.h3)
+            val x = if (h.weekday[low] > 0) h.weekday[peak].toFloat() / h.weekday[low] else 0f
+            Text(
+                "${inr(h.weekday[peak])} on an average ${dayNames[peak]}" +
+                    if (x >= 1.5f) ", about ${String.format(java.util.Locale.US, "%.1f", x).removeSuffix(".0")}× a ${dayNames[low]}." else ".",
+                style = T.small,
+            )
+            Spacer(Modifier.height(14.dp))
+        }
+        Row(Modifier.fillMaxWidth().height(90.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
+            h.weekday.forEachIndexed { i, v ->
+                val f = grown((v.toFloat() / max).coerceAtLeast(.04f), 100L + 40L * i).coerceAtLeast(.001f)
+                Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
+                    Text(short(v), style = T.tiny.copy(fontSize = 11.sp, color = if (i == peak) C.ink else C.faint, fontWeight = FontWeight.SemiBold), maxLines = 1)
+                    Spacer(Modifier.height(4.dp))
+                    Box(Modifier.fillMaxWidth().weight(1f, fill = false).fillMaxHeight(f).clip(RoundedCornerShape(6.dp)).background(if (i == peak) C.heat[3] else C.heat[1]))
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            dayNames.forEachIndexed { i, d ->
+                Text(d.take(1), textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
+                    style = T.tiny.copy(fontSize = 12.sp, color = if (i == peak) C.ink else C.faint, fontWeight = FontWeight.SemiBold))
+            }
+        }
+        val total = h.daypart.sum()
+        if (total > 0) {
+            Spacer(Modifier.height(18.dp))
+            Row(Modifier.fillMaxWidth().height(10.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                h.daypart.forEachIndexed { i, v ->
+                    if (v > 0) {
+                        val g = grown(1f, 300L + 80L * i).coerceAtLeast(.001f)
+                        Box(Modifier.weight(v.toFloat() / total).fillMaxHeight().graphicsLayer { scaleX = g; transformOrigin = TransformOrigin(0f, .5f) }
+                            .clip(CircleShape).background(C.heat[3 - i]))
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            Row(Modifier.fillMaxWidth()) {
+                h.daypart.forEachIndexed { i, v ->
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(8.dp).clip(CircleShape).background(C.heat[3 - i]))
+                            Spacer(Modifier.width(5.dp))
+                            Text(parts[i], style = T.tiny.copy(fontSize = 12.sp), maxLines = 1)
+                        }
+                        Text("${v * 100 / total}%", style = T.label.copy(color = C.ink, fontWeight = FontWeight.Bold))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FactTile(modifier: Modifier, bg: Color, fg: Color, big: String, line: String, sub: String) {
+    Column(modifier.clip(RoundedCornerShape(22.dp)).background(bg).padding(16.dp)) {
+        Text(big, style = T.big.copy(color = fg))
+        Spacer(Modifier.height(4.dp))
+        Text(line, style = T.small.copy(color = C.ink, fontWeight = FontWeight.SemiBold))
+        Text(sub, style = T.tiny)
+    }
+}
+
+@Composable
+private fun PlaceRow(rank: Int, p: PlaceTotal, max: Long, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().press(onClick).padding(vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text("$rank", style = T.h3.copy(color = C.faint, fontFeatureSettings = "tnum"), modifier = Modifier.width(22.dp))
+        CatIcon(p.cat, 36.dp)
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(p.payee, style = T.body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("${if (p.visits == 1) "1 visit" else "${p.visits} visits"} · ${inr(p.total / p.visits)} each", style = T.tiny, maxLines = 1)
+        }
+        Spacer(Modifier.width(8.dp))
+        Text(inr(p.total), style = T.num.copy(fontWeight = FontWeight.Bold))
     }
 }
 
