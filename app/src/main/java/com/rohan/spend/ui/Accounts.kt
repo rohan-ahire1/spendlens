@@ -247,13 +247,30 @@ private fun AccountFace(a: Stats.Account) {
         }
         Spacer(Modifier.weight(1f))
         Text(if (a.isCard) "Card ··${a.id}" else "Account ··${a.id}", style = T.tiny.copy(color = Color.White.copy(alpha = .8f)))
+        // An old balance is dimmed so it doesn't pass for today's.
+        val day = a.balanceTime?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }
+        val old = day != null && balanceIsOld(day)
         Text(
             a.balance?.let { inr(it) } ?: inr(a.monthSpend),
-            style = T.h2.copy(color = Color.White),
+            style = T.h2.copy(color = Color.White.copy(alpha = if (old) .55f else 1f)),
         )
-        Text(if (a.balance != null) "Last known balance" else "Spent this month", style = T.tiny.copy(color = Color.White.copy(alpha = .7f)))
+        val label = when {
+            a.balance == null -> "Spent this month"
+            day == null -> "Last known balance"
+            else -> balanceWhen(day)
+        }
+        Text(label, style = T.tiny.copy(color = Color.White.copy(alpha = if (old) .5f else .7f)))
     }
 }
+
+/** "Balance today", "Balance yesterday", "Balance on 12 Oct". */
+fun balanceWhen(d: LocalDate, today: LocalDate = LocalDate.now()): String = when (d) {
+    today -> "Balance today"
+    today.minusDays(1) -> "Balance yesterday"
+    else -> "Balance on " + dayLabel(d, today)
+}
+
+fun balanceIsOld(d: LocalDate, today: LocalDate = LocalDate.now()) = d.isBefore(today.minusDays(7))
 
 /** "VM-HDFCBK-S" → "HDFC" */
 fun bankName(sender: String): String {

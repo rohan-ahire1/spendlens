@@ -251,17 +251,19 @@ class Stats(
     }
 
     /** Per-account summary for the Accounts screen. */
-    data class Account(val id: String, val isCard: Boolean, val balance: Long?, val monthSpend: Long, val sender: String)
+    data class Account(val id: String, val isCard: Boolean, val balance: Long?, val monthSpend: Long, val sender: String, val balanceTime: Long? = null)
 
     val accounts: List<Account> by lazy {
         txns.filter { it.account != null }.groupBy { it.account!! }.map { (id, l) ->
             val isCard = l.count { it.channel == Channel.CARD } > l.size / 2
+            val withBalance = l.filter { it.balance != null }.maxByOrNull { it.time }
             Account(
                 id = id,
                 isCard = isCard,
-                balance = l.firstOrNull { it.balance != null }?.balance,
+                balance = withBalance?.balance,
                 monthSpend = l.filter { it.debit && it.month() == thisMonth }.sumOf { it.amount },
                 sender = l.first().sender,
+                balanceTime = withBalance?.time,
             )
         }.sortedByDescending { l -> txns.count { it.account == l.id } }
     }
