@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import com.rohan.spend.data.ref
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -62,46 +65,49 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
             .verticalScroll(rememberScrollState()).padding(horizontal = 20.dp),
     ) {
         TopBar("", nav::pop)
-        Column(Modifier.fillMaxWidth().padding(vertical = 18.dp).rise(0), horizontalAlignment = Alignment.CenterHorizontally) {
-            CatIcon(cat, 64.dp)
-            Spacer(Modifier.height(14.dp))
-            Text(t.payee, style = T.h2, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(6.dp))
-            Text(inr(t.signed, signed = !t.debit), style = T.hero.copy(color = if (t.debit) C.ink else C.green))
+        val style = cat.style()
+        Column(Modifier.rise(0).padding(top = 6.dp).fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(style.bg).padding(18.dp)) {
+            Row(
+                Modifier.clip(CircleShape).background(Color.White.copy(alpha = .7f)).press({ picking = true }).padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CatIcon(cat, 26.dp)
+                Spacer(Modifier.width(6.dp))
+                Text(cat.label, style = T.label.copy(color = style.fg))
+                Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = style.fg, modifier = Modifier.size(18.dp))
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(t.payee, style = T.h2, maxLines = 2)
+            Text(inr(t.signed, signed = !t.debit), style = T.display.copy(color = if (t.debit) C.ink else C.green))
             Text(t.date().format(DateTimeFormatter.ofPattern("EEE, d MMM yyyy")) + " · " + t.timeLabel(), style = T.label)
             if (hidden) Box(Modifier.padding(top = 10.dp)) { Pill("Hidden from totals", C.warnInk, C.warnBg) }
         }
 
-        FrostCard(Modifier.rise(1), pad = 6.dp) {
+        FrostCard(Modifier.rise(1).padding(top = 12.dp), pad = 6.dp) {
             Column {
-                Line("Category", onClick = { picking = true }) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CatIcon(cat, 24.dp)
-                        Spacer(Modifier.width(8.dp))
-                        Text(cat.label, style = T.body)
-                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
-                    }
-                }
-                Line("Always file ${t.payee.take(18)} here") { FrostSwitch(always) { vm.setAlways(t, it) } }
-                Line("Paid with") { Text(t.channel.label + (t.account?.let { " ··$it" } ?: ""), style = T.body) }
+                Line("Paid with") { Text(bankName(t.sender) + " " + t.channel.label + (t.account?.let { " ··$it" } ?: ""), style = T.body) }
+                t.ref?.let { r -> Line("Reference") { Text(r, style = T.num) } }
                 if (t.balance != null) Line("Balance after") { Text(inr(t.balance), style = T.num) }
+                if (t.debit && visits > 0) Line("At ${t.payee.take(16)} this month") {
+                    Text(inr(atPayee) + " · " + if (visits == 1) "1 visit" else "$visits visits", style = T.num)
+                }
                 Line("Note", onClick = { editingNote = true }) {
-                    Text(s.notes[t.id] ?: "Add", style = T.body.copy(color = if (s.notes[t.id] == null) C.tint else C.ink))
+                    Text(s.notes[t.id] ?: "Add", style = T.body.copy(color = if (s.notes[t.id] == null) C.tint else C.heat[3]))
                 }
             }
         }
 
-        if (t.debit && visits > 1) {
-            FrostCard(Modifier.padding(top = 12.dp).rise(2)) {
-                Text("${inr(atPayee)} at ${t.payee} this month across $visits payments.", style = T.small.copy(color = C.ink))
-            }
+        FrostCard(Modifier.rise(2).padding(top = 12.dp), pad = 6.dp) {
+            Line("Always file ${t.payee.take(18)} here") { FrostSwitch(always) { vm.setAlways(t, it) } }
         }
 
-        SectionTitle("Original message", Modifier.rise(3)) {
-            Text(if (showSms) "Hide" else "Show", style = T.label.copy(color = C.tint), modifier = Modifier.press({ showSms = !showSms }))
+        Row(Modifier.rise(3).padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Chip("Change category", false, { picking = true })
+            Chip(if (hidden) "Count again" else "Hide", false, { vm.toggleHidden(t) })
+            Chip(if (showSms) "Hide SMS" else "See SMS", showSms, { showSms = !showSms })
         }
         if (showSms) {
-            FrostCard {
+            FrostCard(Modifier.padding(top = 12.dp)) {
                 Column {
                     Text(t.sender, style = T.tiny)
                     Spacer(Modifier.height(6.dp))
@@ -109,8 +115,6 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        GhostButton(if (hidden) "Count this again" else "Hide from totals", { vm.toggleHidden(t) })
         Spacer(Modifier.height(24.dp))
     }
 
@@ -185,3 +189,4 @@ private fun CategoryPicker(current: Cat, options: List<Cat>, keep: Boolean, onKe
         }
     }
 }
+
