@@ -1,5 +1,6 @@
 package com.rohan.spend.ui
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -104,13 +105,13 @@ private fun Fortnight(modifier: Modifier, days: List<Pair<LocalDate, Long>>, per
             }
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth().height(96.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.Bottom) {
-                days.forEach { (d, v) ->
+                days.forEachIndexed { i, (d, v) ->
                     val on = d == sel
                     val lvl = level(v, perDay)
                     val frac = if (v == 0L) 0f else (kotlin.math.sqrt(v.toFloat() / max)).coerceAtLeast(.08f)
                     Box(Modifier.weight(1f).fillMaxHeight().press({ onPick(d) }), contentAlignment = Alignment.BottomCenter) {
                         Box(
-                            Modifier.fillMaxWidth().fillMaxHeight(frac.coerceAtLeast(.04f)).clip(RoundedCornerShape(6.dp))
+                            Modifier.fillMaxWidth().fillMaxHeight(grown(frac.coerceAtLeast(.04f), 60L + 25L * i).coerceAtLeast(.001f)).clip(RoundedCornerShape(6.dp))
                                 .background(if (v == 0L) C.noSpend else C.heat[lvl])
                                 .then(if (on) Modifier.border(2.dp, C.today, RoundedCornerShape(6.dp)) else Modifier),
                         )
@@ -139,7 +140,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.dayGroups(list: List<Txn>, s:
     val today = LocalDate.now()
     days.forEachIndexed { i, (day, txns) ->
         item(key = day.toString()) {
-            Column(Modifier.rise(i)) {
+            Column(Modifier.animateItem().rise(i)) {
                 Row(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         day.dayOfMonth.toString().padStart(2, '0'),
@@ -154,7 +155,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.dayGroups(list: List<Txn>, s:
                     if (out > 0) Text(inr(out), style = T.num.copy(color = C.muted))
                 }
                 FrostCard(pad = 14.dp) {
-                    Column {
+                    Column(Modifier.animateContentSize()) {
                         txns.forEach { t -> TxnRow(t, s.catOf(t), s.notes[t.id], { nav.push(Route.TxnDetail(t.id)) }) }
                     }
                 }
