@@ -237,7 +237,7 @@ private fun AccountFace(a: Stats.Account) {
 }
 
 /** "VM-HDFCBK-S" → "HDFC" */
-private fun bankName(sender: String): String {
+fun bankName(sender: String): String {
     val core = sender.uppercase().split('-').firstOrNull { it.length >= 5 } ?: sender.uppercase()
     val known = listOf("HDFC", "ICICI", "SBI", "AXIS", "KOTAK", "YES", "IDFC", "INDUS", "PNB", "BOB", "CANARA", "FEDERAL", "AU", "ONECARD", "SLICE")
     return known.firstOrNull { it in core } ?: core.take(6)
