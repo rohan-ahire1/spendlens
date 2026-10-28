@@ -1,5 +1,8 @@
 package com.rohan.spend.ui
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -66,18 +69,18 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
     ) {
         item { TabHeader("Accounts", nav) }
-        item {
+        item(contentType = "split") {
             val accounts = s.stats.accounts
             if (accounts.isEmpty()) EmptyNote("No accounts found in your messages yet.")
             else MonthSplit(accounts)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
-                items(accounts) { a -> AccountCard(a) }
+                itemsIndexed(accounts) { i, a -> Box(Modifier.rise(i + 1)) { AccountCard(a) } }
             }
         }
 
-        item { SectionTitle("Counting") }
+        item { SectionTitle("Counting", Modifier.rise(2)) }
         item {
-            FrostCard(pad = 6.dp) {
+            FrostCard(Modifier.rise(3), pad = 6.dp) {
                 Column {
                     Setting("Monthly target", if (s.target > 0) inr(s.target) else "Auto, ${inr(s.stats.usualMonth)}", onClick = { editTarget = true }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
@@ -95,9 +98,9 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             }
         }
 
-        item { SectionTitle("Your data") }
+        item { SectionTitle("Your data", Modifier.rise(4)) }
         item {
-            FrostCard(pad = 6.dp) {
+            FrostCard(Modifier.rise(5), pad = 6.dp) {
                 Column {
                     Setting("Payee rules", "${s.payeeRules.size} saved", onClick = { showRules = true }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
@@ -183,14 +186,15 @@ private fun MonthSplit(accounts: List<Stats.Account>) {
     if (spending.isEmpty()) return
     val total = spending.sumOf { it.monthSpend }
     val shades = listOf(C.heat[3], C.heat[2], C.heat[1], C.heat[0])
-    FrostCard(Modifier.padding(top = 4.dp, bottom = 6.dp), radius = 28.dp, pad = 20.dp) {
+    FrostCard(Modifier.rise(0).padding(top = 4.dp, bottom = 6.dp), radius = 28.dp, pad = 20.dp) {
         Column {
             Text("Left your accounts this month", style = T.label)
             CountUp(total, T.display)
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth().height(28.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 spending.forEachIndexed { i, a ->
-                    Box(Modifier.weight(a.monthSpend.toFloat() / total).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(shades[minOf(i, 3)]))
+                    val g = grown(1f, 100L + 80L * i).coerceAtLeast(.001f)
+                    Box(Modifier.weight(a.monthSpend.toFloat() / total).graphicsLayer { scaleX = g; transformOrigin = TransformOrigin(0f, .5f) }.fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(shades[minOf(i, 3)]))
                 }
             }
             Spacer(Modifier.height(12.dp))
