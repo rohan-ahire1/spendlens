@@ -32,6 +32,18 @@ data class Sub(
 
 data class Change(val cat: Cat, val now: Long, val pct: Int)
 
+data class PlaceTotal(val payee: String, val cat: Cat, val total: Long, val visits: Int)
+
+/** Spending habits over a recent window, for Insights. */
+data class Habits(
+    /** Average spend on each weekday, Monday first. */
+    val weekday: List<Long>,
+    /** Share of spend in the morning, afternoon, evening and night. */
+    val daypart: List<Long>,
+    val smallCount: Int,
+    val smallTotal: Long,
+)
+
 enum class Period(val label: String) { MONTH("Month"), WEEK("Week"), YEAR("Year") }
 
 /** All the numbers the screens need, computed once per data change. */
@@ -145,6 +157,46 @@ class Stats(
     }
 
     val avgLiving: Long by lazy { avgMonthly(::counts) }
+
+    private fun counted(days: Long) = txns.filter { counts(it) && !it.date().isBefore(today.minusDays(days - 1)) }
+
+    /** What a month in each category costs on average, over the last 3 full months. */
+    val avgByCat: List<CatTotal> by lazy {
+        val months = (1..3).map { thisMonth.minusMonths(it.toLong()) }.filter { it >= (txns.minOfOrNull { t -> t.month() } ?: thisMonth) }
+        if (months.isEmpty()) return@lazy emptyList()
+        txns.filter { counts(it) && it.month() in months }.groupBy(catOf)
+            .map { (c, l) -> CatTotal(c, l.sumOf { it.amount } / months.size, l.size) }
+            .sortedByDescending { it.total }
+    }
+
+    /** Where money went most over the last [days] days. */
+    fun topPlaces(days: Long = 90, n: Int = 5): List<PlaceTotal> = counted(days)
+        .filter { catOf(it) != Cat.PEOPLE && catOf(it) != Cat.FAMILY }
+        .groupBy { it.payeeKey }
+        .map { (_, l) -> PlaceTotal(l.first().payee, catOf(l.first()), l.sumOf { it.amount }, l.size) }
+        .sortedByDescending { it.total }
+        .take(n)
+
+    fun habits(days: Long = 90): Habits {
+        val l = counted(days)
+        val from = today.minusDays(days - 1)
+        val dowCount = IntArray(7).also { c -> (0 until days).forEach { c[from.plusDays(it).dayOfWeek.value - 1]++ } }
+        val dow = LongArray(7).also { a -> l.forEach { a[it.date().dayOfWeek.value - 1] += it.amount } }
+        val part = LongArray(4).also { a ->
+            l.forEach {
+                val h = Instant.ofEpochMilli(it.time).atZone(zone).hour
+                a[when (h) { in 5..11 -> 0; in 12..16 -> 1; in 17..21 -> 2; else -> 3 }] += it.amount
+            }
+        }
+        val small = counted(30).filter { it.amount < 200_00 }
+        return Habits(
+            dow.mapIndexed { i, v -> if (dowCount[i] == 0) 0 else v / dowCount[i] },
+            part.toList(), small.size, small.sumOf { it.amount },
+        )
+    }
+
+    /** Days this month, up to today, with nothing counted spent. */
+    val noSpendDays: Int by lazy { (1..today.dayOfMonth).count { (daily[thisMonth.atDay(it)] ?: 0L) == 0L } }
     val avgFamily: Long by lazy { avgMonthly { it.debit && catOf(it).bucket == Bucket.FAMILY } }
 
     /** Biggest moves this month vs the average of the 3 months before, pace-adjusted. */
