@@ -104,9 +104,19 @@ class Stats(
     }
 
     /** Counted spend per day of the current month. */
-    val daily: Map<LocalDate, Long> by lazy {
-        txns.filter { counts(it) && it.month() == thisMonth }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
-    }
+    val daily: Map<LocalDate, Long> by lazy { dailyIn(thisMonth) }
+
+    /** Counted spend per day of any month. */
+    fun dailyIn(ym: YearMonth): Map<LocalDate, Long> =
+        txns.filter { counts(it) && it.month() == ym }.groupBy { it.date() }.mapValues { e -> e.value.sumOf { it.amount } }
+
+    fun byCatIn(ym: YearMonth): List<CatTotal> = txns.filter { counts(it) && it.month() == ym }
+        .groupBy(catOf)
+        .map { (c, l) -> CatTotal(c, l.sumOf { it.amount }, l.size) }
+        .sortedByDescending { it.total }
+
+    /** The oldest month the SMS history reaches. */
+    val firstMonth: YearMonth by lazy { txns.minOfOrNull { it.month() } ?: thisMonth }
 
     /** Counted spend for each of the last [n] days, oldest first. */
     fun lastDays(n: Int): List<Pair<LocalDate, Long>> {
