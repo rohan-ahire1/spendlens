@@ -58,7 +58,7 @@ private val monFmt = DateTimeFormatter.ofPattern("MMM")
 
 /** Every payment in a category, filterable by time span and by who was paid. */
 @Composable
-fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
+fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav, onBudget: (Long) -> Unit = {}) {
     val st = s.stats
     val style = cat.style()
     val today = LocalDate.now()
@@ -83,6 +83,8 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
             .let { if (it.isEmpty()) 0L else it.sum() / it.size }
     }
     val biggestId = inSpan.maxByOrNull { it.amount }?.id
+    var editBudget by rememberSaveable { mutableStateOf(false) }
+    if (editBudget) BudgetDialog(cat, s, onBudget) { editBudget = false }
 
     LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
         item { TopBar(cat.label, nav::pop) }
@@ -115,6 +117,9 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
                     }
                 }
             }
+        }
+        if (cat.budgetable) item {
+            BudgetCard(cat, past ?: st.thisMonth, s, Modifier.rise(1).padding(top = 12.dp)) { editBudget = true }
         }
 
         if (payees.size > 1) {

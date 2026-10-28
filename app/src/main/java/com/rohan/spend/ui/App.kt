@@ -166,7 +166,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                     }
                     is Route.TxnDetail -> s.txns.firstOrNull { it.id == r.id }
                         ?.let { TxnScreen(it, s, vm, nav) } ?: LaunchedEffect(r) { nav.pop() }
-                    is Route.Category -> CategoryScreen(r.cat, r.month?.let(java.time.YearMonth::parse), s, nav)
+                    is Route.Category -> CategoryScreen(r.cat, r.month?.let(java.time.YearMonth::parse), s, nav) { vm.setBudget(r.cat, it) }
                     is Route.Day -> DayScreen(java.time.LocalDate.ofEpochDay(r.epochDay), s, nav)
                     Route.Search -> SearchScreen(s, nav)
                     is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
