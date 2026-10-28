@@ -14,6 +14,10 @@ An Android app that reads your bank SMS and shows where your money goes. Everyth
 
 Payments are sorted into groceries, food delivery, eating out, commute, fuel, shopping, bills, subscriptions and so on, using merchant names in the SMS. Money sent to family and credit card bill payments can be left out of the totals so nothing is counted twice.
 
+## Download
+
+Get the latest APK from [Releases](https://github.com/rohan-ahire1/spendlens/releases/latest). A new one is built every time `master` changes. You'll need to allow installs from unknown sources.
+
 ## Build
 
 Needs JDK 17 and the Android SDK.
