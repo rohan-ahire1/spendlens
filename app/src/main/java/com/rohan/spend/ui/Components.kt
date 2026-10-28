@@ -306,7 +306,7 @@ fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modif
                     val on = tab == selected
                     val tint by animateColorAsState(if (on) C.ink else C.barOff, label = "tabTint")
                     Box(Modifier.weight(1f).fillMaxHeight().clip(CircleShape).press({ onSelect(tab) }, haptic = true), contentAlignment = Alignment.Center) {
-                        Text(tab.label, style = TextStyle(fontFamily = Plex, fontSize = 13.sp, color = tint, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1)
+                        Text(tab.label, style = TextStyle(fontFamily = Plex, fontSize = 14.sp, color = tint, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium), maxLines = 1)
                     }
                 }
             }
