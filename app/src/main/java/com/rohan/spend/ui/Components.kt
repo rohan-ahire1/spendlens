@@ -175,11 +175,10 @@ fun CatIcon(cat: Cat, size: Dp = 40.dp) {
 
 @Composable
 fun Chip(text: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val bg by animateColorAsState(if (selected) C.ink else Color.White.copy(alpha = .7f), label = "chipBg")
+    val bg by animateColorAsState(if (selected) C.ink else C.card, label = "chipBg")
     val fg by animateColorAsState(if (selected) Color.White else C.ink, label = "chipFg")
     Box(
         modifier.press(onClick, haptic = true).clip(CircleShape).background(bg)
-            .border(1.dp, if (selected) C.ink else Color.White, CircleShape)
             .padding(horizontal = 14.dp, vertical = 8.dp),
     ) { Text(text, style = T.label.copy(color = fg)) }
 }
