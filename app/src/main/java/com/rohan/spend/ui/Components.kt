@@ -4,13 +4,9 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -21,6 +17,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -55,16 +53,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
@@ -75,14 +78,27 @@ import kotlin.math.roundToLong
 
 // ---------- Surfaces ----------
 
-/** Soft coloured light drifting behind the frosted cards. */
+/**
+ * Soft coloured light behind the frosted cards. It drifts only while [animate] is on:
+ * a moving background forces every card shadow to redraw each frame, which costs battery.
+ */
 @Composable
-fun FrostBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    val drift = rememberInfiniteTransition(label = "blobs")
-    val a by drift.animateFloat(0f, 1f, infiniteRepeatable(tween(14000, easing = LinearEasing), RepeatMode.Reverse), label = "a")
-    val b by drift.animateFloat(0f, 1f, infiniteRepeatable(tween(19000, easing = LinearEasing), RepeatMode.Reverse), label = "b")
+fun FrostBackground(modifier: Modifier = Modifier, animate: Boolean = true, content: @Composable BoxScope.() -> Unit) {
+    val pa = remember { Animatable(.5f) }
+    val pb = remember { Animatable(.5f) }
+    LaunchedEffect(animate) {
+        if (!animate) {
+            launch { pa.animateTo(.5f, tween(1600, easing = FastOutSlowInEasing)) }
+            pb.animateTo(.5f, tween(1600, easing = FastOutSlowInEasing))
+            return@LaunchedEffect
+        }
+        launch { while (true) { pa.animateTo(1f, tween(7000, easing = LinearEasing)); pa.animateTo(0f, tween(14000, easing = LinearEasing)) } }
+        while (true) { pb.animateTo(0f, tween(9500, easing = LinearEasing)); pb.animateTo(1f, tween(19000, easing = LinearEasing)) }
+    }
     Box(modifier.fillMaxSize().background(C.bg)) {
         Canvas(Modifier.fillMaxSize()) {
+            val a = pa.value
+            val b = pb.value
             val w = size.width
             val h = size.height
             fun blob(color: Color, x: Float, y: Float, r: Float) = drawCircle(
@@ -101,7 +117,11 @@ private val frostFill = Brush.verticalGradient(listOf(Color.White.copy(alpha = .
 
 /** The frosted glass card look. */
 fun Modifier.frost(radius: Dp = 24.dp, shape: Shape = RoundedCornerShape(radius)): Modifier = this
-    .shadow(18.dp, shape, ambientColor = Color(0x2215161B), spotColor = Color(0x1A15161B))
+    // A drawn 2dp drop instead of elevation shadows, which stalled rendering to ~2s a frame.
+    .drawBehind {
+        val o = shape.createOutline(size, layoutDirection, this)
+        translate(top = 2.dp.toPx()) { drawOutline(o, Color(0x0F15161B)) }
+    }
     .clip(shape)
     .background(frostFill)
     .border(1.dp, Color.White.copy(alpha = .9f), shape)
@@ -277,41 +297,46 @@ enum class Tab(val label: String, val icon: androidx.compose.ui.graphics.vector.
     ACCOUNTS("Accounts", Icons.Rounded.AccountBalance),
 }
 
-/** Floating glass pill with a black indicator that slides between tabs. */
+/** Floating glass pill with a black indicator that slides between tabs, plus a matching search button. */
 @Composable
 fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier) {
-    val itemW = 62.dp
-    val x by animateDpAsState(itemW * selected.ordinal, spring(dampingRatio = .72f, stiffness = 420f), label = "pill")
+    val barH = 64.dp
+    val inset = 5.dp
+    // Fade the list out under the bar so rows never show through the glass.
+    val scrim = Brush.verticalGradient(0f to Color.Transparent, .45f to Color(0xF2F6F7FB), 1f to Color(0xFFF6F7FB))
     Row(
-        modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier.fillMaxWidth().background(scrim).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.frost(shape = CircleShape).padding(5.dp)) {
-            Box(Modifier.offset(x = x).width(itemW).height(52.dp).clip(CircleShape).background(C.ink))
-            Row {
+        BoxWithConstraints(Modifier.weight(1f).height(barH).frost(shape = CircleShape).background(Color.White.copy(alpha = .55f)).padding(inset)) {
+            val itemW = maxWidth / Tab.entries.size
+            val x by animateDpAsState(itemW * selected.ordinal, spring(dampingRatio = .75f, stiffness = 380f), label = "pill")
+            Box(Modifier.offset(x = x).width(itemW).fillMaxHeight().clip(CircleShape).background(C.ink))
+            Row(Modifier.fillMaxSize()) {
                 Tab.entries.forEach { tab ->
                     val on = tab == selected
                     val tint by animateColorAsState(if (on) Color.White else C.muted, label = "tabTint")
                     Column(
-                        Modifier.width(itemW).height(52.dp).press({ onSelect(tab) }, haptic = true),
+                        Modifier.weight(1f).fillMaxHeight().clip(CircleShape).press({ onSelect(tab) }, haptic = true),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Icon(tab.icon, tab.label, tint = tint, modifier = Modifier.size(20.dp))
-                        Text(tab.label, style = T.tiny.copy(color = tint, fontSize = 10.sp))
+                        Icon(tab.icon, tab.label, tint = tint, modifier = Modifier.size(21.dp))
+                        Spacer(Modifier.height(2.dp))
+                        Text(tab.label, style = T.tiny.copy(color = tint, fontSize = 11.sp, fontWeight = FontWeight.Medium), maxLines = 1)
                     }
                 }
             }
         }
-        Box(Modifier.size(62.dp).press(onSearch, haptic = true).frost(shape = CircleShape), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(barH).press(onSearch, haptic = true).frost(shape = CircleShape).background(Color.White.copy(alpha = .55f)), contentAlignment = Alignment.Center) {
             Icon(Icons.Rounded.Search, "Search", tint = C.ink, modifier = Modifier.size(22.dp))
         }
     }
 }
 
 /** Keeps the bottom of a scrolling list clear of the floating bar. */
-val BarClearance = 110.dp
+val BarClearance = 120.dp
 
 @Composable
 fun EmptyNote(text: String) {
