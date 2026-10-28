@@ -93,7 +93,10 @@ data class AppState(
     fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, splits[t.id]?.mine, refunded(t))
     private fun refunded(t: Txn): Long = refundsOf[t.id]?.sumOf { it.amount } ?: 0
     /** Each side of a move between the user's own accounts → the other side. */
-    val transfers: Map<Long, Long> by lazy { Transfers.find(txns) { Categorizer.auto(it) == Cat.REFUND } }
+    // Only visible payments pair up, and one the user filed elsewhere frees its other side to be categorised as usual.
+    val transfers: Map<Long, Long> by lazy {
+        Transfers.find(visible) { t -> Categorizer.auto(t) == Cat.REFUND || (txnCats[t.id] ?: payeeRules[t.payeeKey]).let { it != null && it != Cat.TRANSFER } }
+    }
 
     /** Split payment id → the paybacks confirmed for it, oldest first. */
     val paidBack: Map<Long, List<Txn>> by lazy {

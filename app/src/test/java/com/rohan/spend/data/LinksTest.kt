@@ -68,6 +68,13 @@ class LinksTest {
         assertEquals(2, Transfers.find(listOf(a, b, c)).size)
     }
 
+    @Test fun skippedDebitFreesItsCredit() {
+        val out = t(2_000_00, true, "Rent", 0, account = "1111")
+        val inn = t(2_000_00, false, "Asha", 60_000, account = "2222")
+        assertEquals(2, Transfers.find(listOf(out, inn)).size)
+        assertTrue(Transfers.find(listOf(out, inn)) { it === out }.isEmpty())
+    }
+
     @Test fun splitShareMath() {
         val three = Split.even(1000_00, 3)
         assertEquals(333_33L, three.mine)

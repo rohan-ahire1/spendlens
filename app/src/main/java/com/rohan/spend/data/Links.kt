@@ -64,12 +64,13 @@ object Transfers {
     /**
      * Pairs a debit on one account with a credit of the same amount on a different account
      * within [WINDOW_MS]. Card lines and cash are left out: a card credit is a refund or bill
-     * payment, not a transfer. Returns id → the other side, both ways round.
+     * payment, not a transfer. Either side for which [skip] says yes is left out too.
+     * Returns id → the other side, both ways round.
      */
     fun find(txns: List<Txn>, skip: (Txn) -> Boolean = { false }): Map<Long, Long> {
         val credits = txns.filter { !it.debit && it.account != null && it.channel != Channel.CARD && !skip(it) }.groupBy { it.amount }
         val out = HashMap<Long, Long>()
-        for (d in txns.filter { it.debit && it.account != null && it.channel != Channel.CARD && it.channel != Channel.ATM }.sortedBy { it.time }) {
+        for (d in txns.filter { it.debit && it.account != null && it.channel != Channel.CARD && it.channel != Channel.ATM && !skip(it) }.sortedBy { it.time }) {
             val c = credits[d.amount].orEmpty()
                 .filter { it.id !in out && it.account != d.account && abs(it.time - d.time) <= WINDOW_MS }
                 .minByOrNull { abs(it.time - d.time) } ?: continue
