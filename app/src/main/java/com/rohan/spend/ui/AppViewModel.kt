@@ -12,6 +12,9 @@ import com.rohan.spend.data.Categorizer
 import com.rohan.spend.data.Counting
 import com.rohan.spend.data.Prefs
 import com.rohan.spend.data.SmsSource
+import com.rohan.spend.data.Snapshot
+import com.rohan.spend.data.TxnCache
+import com.rohan.spend.data.ids
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
 
@@ -42,6 +46,7 @@ data class AppState(
     val autoRefresh: Boolean = true,
     val target: Long = 0,
     val refreshing: Boolean = false,
+    val rescanning: Boolean = false,
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
@@ -56,9 +61,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _state = MutableStateFlow(fromPrefs(AppState()))
     val state: StateFlow<AppState> = _state
     private var scanJob: Job? = null
+    private val cacheFile = File(app.filesDir, "txns.bin")
+    /** Highest SMS _ID already read, or -1 when there's no cache and everything must be read. */
+    private var maxSmsId = -1L
 
     init {
-        if (hasPermission()) scan(firstTime = true)
+        if (hasPermission()) start()
     }
 
     private fun fromPrefs(s: AppState) = s.copy(
@@ -76,32 +84,54 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         PackageManager.PERMISSION_GRANTED
 
     fun onPermission(granted: Boolean) {
-        if (granted) scan(firstTime = true)
+        if (granted) start()
     }
 
     fun onResume() {
         val s = _state.value
-        if (s.stage == Stage.NEEDS_PERMISSION && hasPermission()) scan(firstTime = true)
+        if (s.stage == Stage.NEEDS_PERMISSION && hasPermission()) start()
         else if (s.stage == Stage.READY && s.autoRefresh) scan(firstTime = false)
     }
 
     fun refresh() = scan(firstTime = false)
 
-    private fun scan(firstTime: Boolean) {
+    /** Shows the saved transactions straight away and only reads what's new; the scan screen is for the very first run. */
+    private fun start() {
+        if (maxSmsId < 0) {
+            // A small file read on the main thread, so the first frame is the real app, not a flash of the scan screen.
+            TxnCache.load(cacheFile)?.let { c ->
+                maxSmsId = c.maxId
+                _state.update { it.copy(stage = Stage.READY, txns = c.txns, foundCount = c.txns.size) }
+            }
+        }
+        if (maxSmsId < 0) scan(firstTime = true) else if (_state.value.autoRefresh) scan(firstTime = false)
+    }
+
+    private fun scan(firstTime: Boolean, full: Boolean = false) {
         if (scanJob?.isActive == true) return
         val showScreen = firstTime && _state.value.txns.isEmpty()
-        _state.update { it.copy(stage = if (showScreen) Stage.SCANNING else it.stage, refreshing = !showScreen) }
+        val known = if (full) -1L else maxSmsId
+        _state.update { it.copy(stage = if (showScreen) Stage.SCANNING else it.stage, refreshing = !showScreen, rescanning = full) }
         scanJob = viewModelScope.launch {
             val started = System.currentTimeMillis()
-            val txns = withContext(Dispatchers.IO) {
-                SmsSource.read(getApplication()) { done, total, found ->
+            val app = getApplication<Application>()
+            val snap = withContext(Dispatchers.IO) {
+                // Taken before reading, so a message that lands mid-scan is picked up next time rather than skipped.
+                val alive = SmsSource.ids(app)
+                val top = alive.maxOrNull() ?: 0L
+                // IDs going backwards means the inbox was rebuilt (restore, new phone), so read it all again.
+                val whole = known < 0 || top < known
+                val read = SmsSource.read(app, afterId = if (whole) 0 else known) { done, total, found ->
                     _state.update { it.copy(done = done, total = total, justFound = found.reversed()) }
                 }
+                val txns = if (whole) read else TxnCache.merge(_state.value.txns, alive, read)
+                Snapshot(if (whole) top else maxOf(top, known), txns).also { runCatching { TxnCache.save(cacheFile, it) } }
             }
-            _state.update { it.copy(foundCount = txns.size) }
+            maxSmsId = snap.maxId
+            _state.update { it.copy(foundCount = snap.txns.size) }
             // Let the scan animation land rather than flashing past.
             if (showScreen) delay((1800 - (System.currentTimeMillis() - started)).coerceAtLeast(0))
-            _state.update { it.copy(stage = Stage.READY, txns = txns, refreshing = false) }
+            _state.update { it.copy(stage = Stage.READY, txns = snap.txns, refreshing = false, rescanning = false) }
         }
     }
 
@@ -172,6 +202,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     w.write(cells.joinToString(",") { "\"" + it.replace("\"", "\"\"") + "\"" } + "\n")
                 }
             }
+        }
+    }
+
+    /** Reads the whole inbox again rather than only what's new. Wired to "Rescan all messages". */
+    fun fullRescan() {
+        viewModelScope.launch {
+            scanJob?.join()
+            scan(firstTime = false, full = true)
         }
     }
 }

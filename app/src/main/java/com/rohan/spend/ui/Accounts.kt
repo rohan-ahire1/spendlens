@@ -53,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.inr
+import com.rohan.spend.data.groupIndian
+import androidx.compose.material3.CircularProgressIndicator
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -109,6 +111,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
                     Setting("Reset my edits", "Categories, notes, hidden items and settings", onClick = { confirmReset = true }) {}
+                    RescanRow(s, vm)
                 }
             }
         }
@@ -259,5 +262,17 @@ private fun Setting(title: String, sub: String?, onClick: (() -> Unit)? = null, 
         }
         Spacer(Modifier.width(10.dp))
         trailing()
+    }
+}
+
+@Composable
+private fun RescanRow(s: AppState, vm: AppViewModel) {
+    val sub = when {
+        !s.rescanning -> "Start fresh if something looks missing"
+        s.total > 0 -> "Reading ${groupIndian(s.done.toLong())} of ${groupIndian(s.total.toLong())}"
+        else -> "Reading…"
+    }
+    Setting("Rescan all messages", sub, onClick = if (s.rescanning) null else vm::fullRescan) {
+        if (s.rescanning) CircularProgressIndicator(Modifier.size(20.dp), color = C.ink, strokeWidth = 2.dp)
     }
 }
