@@ -15,6 +15,7 @@ import com.rohan.spend.data.SmsSource
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
+import com.rohan.spend.data.groupIndian
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -160,18 +161,26 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun exportCsv(uri: Uri) {
         val s = _state.value
-        viewModelScope.launch(Dispatchers.IO) {
-            getApplication<Application>().contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { w ->
-                w.write("date,payee,amount,direction,category,channel,account,note\n")
-                for (t in s.visible) {
-                    val cells = listOf(
-                        t.date().toString(), t.payee, "%.2f".format(t.amount / 100.0),
-                        if (t.debit) "out" else "in", s.catOf(t).label, t.channel.label,
-                        t.account ?: "", s.notes[t.id] ?: "",
-                    )
-                    w.write(cells.joinToString(",") { "\"" + it.replace("\"", "\"\"") + "\"" } + "\n")
+        viewModelScope.launch {
+            // A full disk, a revoked folder or a provider that won't open all land here.
+            val ok = runCatching {
+                withContext(Dispatchers.IO) {
+                    val out = getApplication<Application>().contentResolver.openOutputStream(uri) ?: error("No file to write to")
+                    out.bufferedWriter().use { w ->
+                        w.write("date,payee,amount,direction,category,channel,account,note\n")
+                        for (t in s.visible) {
+                            val cells = listOf(
+                                t.date().toString(), t.payee, "%.2f".format(t.amount / 100.0),
+                                if (t.debit) "out" else "in", s.catOf(t).label, t.channel.label,
+                                t.account ?: "", s.notes[t.id] ?: "",
+                            )
+                            w.write(cells.joinToString(",") { "\"" + it.replace("\"", "\"\"") + "\"" } + "\n")
+                        }
+                    }
                 }
-            }
+            }.isSuccess
+            val n = s.visible.size
+            say(if (!ok) "Couldn't save the file. Try another folder." else if (n == 1) "Saved 1 payment" else "Saved ${groupIndian(n.toLong())} payments")
         }
     }
 
