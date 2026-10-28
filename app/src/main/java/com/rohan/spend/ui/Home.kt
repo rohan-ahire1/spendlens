@@ -54,8 +54,7 @@ import java.util.Locale
 fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val st = s.stats
     val today = LocalDate.now()
-    var selEpoch by rememberSaveable { mutableStateOf(today.toEpochDay()) }
-    val sel = LocalDate.ofEpochDay(selEpoch)
+    val sel = today
     val spent = st.spent(Period.MONTH)
     val usual = s.usual()
     LazyColumn(
@@ -76,7 +75,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         }
         item { Headline(Modifier.rise(0), today, spent, usual) }
         item {
-            Calendar(Modifier.rise(1).padding(top = 18.dp), today, st.daily, usual / today.lengthOfMonth(), sel) { selEpoch = it.toEpochDay() }
+            Calendar(Modifier.rise(1).padding(top = 18.dp), today, st.daily, usual / today.lengthOfMonth(), sel) { nav.push(Route.Day(it.toEpochDay())) }
         }
         item {
             Treemap(Modifier.rise(2).padding(top = 10.dp), st.byCat(Period.MONTH), { nav.push(Route.Category(it)) }, { nav.tab(Tab.INSIGHTS) })
