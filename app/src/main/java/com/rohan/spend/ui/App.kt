@@ -12,7 +12,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Typography
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -44,7 +48,20 @@ class Nav(start: Route) {
 @Composable
 fun SpendApp(vm: AppViewModel, onAskPermission: () -> Unit) {
     val s by vm.state.collectAsStateWithLifecycle()
-    FrostBackground {
+    val base = Typography()
+    val type = Typography(
+        headlineSmall = base.headlineSmall.copy(fontFamily = Inter, fontWeight = FontWeight.SemiBold),
+        bodyLarge = base.bodyLarge.copy(fontFamily = Inter),
+        bodyMedium = base.bodyMedium.copy(fontFamily = Inter),
+        bodySmall = base.bodySmall.copy(fontFamily = Inter),
+        labelLarge = base.labelLarge.copy(fontFamily = Inter),
+    )
+    MaterialTheme(typography = type) { ProvideTextStyle(T.body) { Root(vm, s, onAskPermission) } }
+}
+
+@Composable
+private fun Root(vm: AppViewModel, s: AppState, onAskPermission: () -> Unit) {
+    FrostBackground(animate = s.stage != Stage.READY) {
         AnimatedContent(
             targetState = s.stage,
             transitionSpec = { (fadeIn(tween(500)) + scaleIn(initialScale = .96f)) togetherWith fadeOut(tween(300)) },

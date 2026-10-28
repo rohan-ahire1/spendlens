@@ -24,9 +24,14 @@ import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.Work
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import com.rohan.spend.R
 import com.rohan.spend.data.Cat
 
 /** Frost Light palette, lifted from the design canvas. */
@@ -50,18 +55,24 @@ object C {
     val warnBg = Color(0xFFFFEEDD)
 }
 
+@OptIn(ExperimentalTextApi::class)
+private fun inter(w: Int) = Font(R.font.inter, FontWeight(w), variationSettings = FontVariation.Settings(FontVariation.weight(w)))
+
+/** Inter, the same face Linear uses, from one bundled variable font. */
+val Inter = FontFamily(inter(400), inter(500), inter(600), inter(700))
+
 object T {
     private const val TNUM = "tnum"
-    val hero = TextStyle(fontSize = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.6).sp, color = C.ink, fontFeatureSettings = TNUM)
-    val big = TextStyle(fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.2).sp, color = C.ink, lineHeight = 37.sp)
-    val title = TextStyle(fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.9).sp, color = C.ink)
-    val h2 = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, color = C.ink)
-    val h3 = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = C.ink)
-    val body = TextStyle(fontSize = 15.sp, color = C.ink, letterSpacing = (-0.1).sp)
+    val hero = TextStyle(fontFamily = Inter, fontSize = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.6).sp, color = C.ink, fontFeatureSettings = TNUM)
+    val big = TextStyle(fontFamily = Inter, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.2).sp, color = C.ink, lineHeight = 37.sp)
+    val title = TextStyle(fontFamily = Inter, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.9).sp, color = C.ink)
+    val h2 = TextStyle(fontFamily = Inter, fontSize = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.4).sp, color = C.ink)
+    val h3 = TextStyle(fontFamily = Inter, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = C.ink)
+    val body = TextStyle(fontFamily = Inter, fontSize = 15.sp, color = C.ink, letterSpacing = (-0.1).sp)
     val num = body.copy(fontWeight = FontWeight.Medium, fontFeatureSettings = TNUM)
-    val label = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Medium, color = C.muted)
-    val small = TextStyle(fontSize = 13.sp, color = C.muted, lineHeight = 18.sp)
-    val tiny = TextStyle(fontSize = 12.sp, color = C.subtle)
+    val label = TextStyle(fontFamily = Inter, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = C.muted)
+    val small = TextStyle(fontFamily = Inter, fontSize = 13.sp, color = C.muted, lineHeight = 18.sp)
+    val tiny = TextStyle(fontFamily = Inter, fontSize = 12.sp, color = C.subtle)
 }
 
 data class CatStyle(val icon: ImageVector, val fg: Color, val bg: Color)
