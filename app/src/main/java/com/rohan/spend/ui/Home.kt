@@ -67,7 +67,7 @@ import java.util.Locale
 @Composable
 fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val st = s.stats
-    val today = LocalDate.now()
+    val today = s.today
     val sel = today
     var back by rememberSaveable { mutableStateOf(0L) }
     val ym = st.thisMonth.minusMonths(back)
@@ -107,7 +107,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         }
         if (current) item {
             val dayTxns = st.onDay(sel)
-            SectionTitle(dayLabel(sel), Modifier.rise(3)) {
+            SectionTitle(dayLabel(sel, today), Modifier.rise(3)) {
                 Text(inr(st.daily[sel] ?: 0L), style = T.num.copy(color = C.muted))
             }
             FrostCard(Modifier.rise(4), pad = 14.dp) {
@@ -125,7 +125,7 @@ private fun Headline(modifier: Modifier, ym: YearMonth, current: Boolean, spent:
     Row(modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             val name = ym.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())
-            Text(if (current) "$name so far" else if (ym.year == LocalDate.now().year) "Spent in $name" else "Spent in $name ${ym.year}", style = T.label)
+            Text(if (current) "$name so far" else if (ym.year == LocalToday.current.year) "Spent in $name" else "Spent in $name ${ym.year}", style = T.label)
             CountUp(spent, T.display)
         }
         if (usual > 0) Column(Modifier.padding(bottom = 6.dp), horizontalAlignment = Alignment.End) {

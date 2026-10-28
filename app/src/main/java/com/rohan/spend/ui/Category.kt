@@ -61,7 +61,7 @@ private val monFmt = DateTimeFormatter.ofPattern("MMM")
 fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
     val st = s.stats
     val style = cat.style()
-    val today = LocalDate.now()
+    val today = s.today
     // Opened from a past month on Home: the month chip means that month, not this one.
     val past = month?.takeIf { it < st.thisMonth }
     val monthLabel = past?.format(if (past.year == today.year) DateTimeFormatter.ofPattern("MMMM") else DateTimeFormatter.ofPattern("MMM yyyy"))

@@ -98,7 +98,7 @@ fun InsightsScreen(s: AppState, nav: Nav) {
         item { FrostCard(Modifier.rise(8), pad = 16.dp) { WhenYouSpend(habits) } }
         item {
             Row(Modifier.rise(9).padding(top = 12.dp).fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val today = java.time.LocalDate.now()
+                val today = s.today
                 FactTile(
                     Modifier.weight(1f).fillMaxHeight(), C.green.copy(alpha = .1f), C.green,
                     "${st.noSpendDays}", if (st.noSpendDays == 1) "day without spending" else "days without spending",

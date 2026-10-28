@@ -66,7 +66,7 @@ fun DayScreen(start: LocalDate, s: AppState, nav: Nav) {
     var only by rememberSaveable { mutableStateOf<Boolean?>(null) }
     var biggest by rememberSaveable { mutableStateOf(true) }
     val day = LocalDate.ofEpochDay(epoch)
-    val today = LocalDate.now()
+    val today = s.today
     val st = s.stats
     val all = remember(s.visible, day) { s.visible.filter { it.date() == day } }
     val spent = all.filter(st::counts).sumOf { it.amount }

@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.Duration
+import java.time.LocalDate
+import java.time.ZonedDateTime
 
 enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
 
@@ -47,12 +50,14 @@ data class AppState(
     val target: Long = 0,
     val refreshing: Boolean = false,
     val rescanning: Boolean = false,
+    /** The date every screen treats as today. The VM moves it on at midnight and on resume. */
+    val today: LocalDate = LocalDate.now(),
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
     fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) { txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Categorizer.auto(t) }
     val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
-    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills)) }
+    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today) }
     fun usual(): Long = if (target > 0) target else stats.usualMonth
 }
 
@@ -67,6 +72,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         if (hasPermission()) start()
+        viewModelScope.launch {
+            while (true) {
+                delay(msToMidnight())
+                rollDate()
+            }
+        }
     }
 
     private fun fromPrefs(s: AppState) = s.copy(
@@ -88,6 +99,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onResume() {
+        rollDate()
         val s = _state.value
         if (s.stage == Stage.NEEDS_PERMISSION && hasPermission()) start()
         else if (s.stage == Stage.READY && s.autoRefresh) scan(firstTime = false)
@@ -211,5 +223,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             scanJob?.join()
             scan(firstTime = false, full = true)
         }
+    }
+
+    /** Moves "today" on when the date has changed, which rebuilds Stats for the new day and month. */
+    private fun rollDate() {
+        val now = LocalDate.now()
+        if (now != _state.value.today) _state.update { it.copy(today = now) }
+    }
+
+    // A second past midnight, so LocalDate.now() has surely turned over. Doze can delay it; onResume catches that.
+    private fun msToMidnight(): Long {
+        val now = ZonedDateTime.now()
+        return Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay(now.zone)).toMillis() + 1000
     }
 }

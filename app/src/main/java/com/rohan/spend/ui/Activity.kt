@@ -98,7 +98,7 @@ private fun Fortnight(modifier: Modifier, days: List<Pair<LocalDate, Long>>, per
         Column {
             Row(verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
-                    Text(shown?.let { dayLabel(it.first) } ?: "Last 14 days", style = T.label)
+                    Text(shown?.let { dayLabel(it.first, LocalToday.current) } ?: "Last 14 days", style = T.label)
                     CountUp(shown?.second ?: days.sumOf { it.second }, T.h2)
                 }
                 Text(if (sel != null) "Tap again to clear" else "Tap a day", style = T.tiny)
@@ -137,7 +137,7 @@ private val mon = DateTimeFormatter.ofPattern("MMMM")
 /** A big date number beside each day's name and total, then that day's card. */
 fun androidx.compose.foundation.lazy.LazyListScope.dayGroups(list: List<Txn>, s: AppState, nav: Nav) {
     val days = list.groupBy { it.date() }.entries.toList()
-    val today = LocalDate.now()
+    val today = s.today
     days.forEachIndexed { i, (day, txns) ->
         item(key = day.toString()) {
             Column(Modifier.animateItem().rise(i)) {
