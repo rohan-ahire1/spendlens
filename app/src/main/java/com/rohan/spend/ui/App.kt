@@ -160,7 +160,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                 when (val r = e.route) {
                     is Route.Tabbed -> when (r.tab) {
                         Tab.HOME -> HomeScreen(s, vm, nav)
-                        Tab.ACTIVITY -> ActivityScreen(s, nav)
+                        Tab.ACTIVITY -> ActivityScreen(s, nav, vm::refresh)
                         Tab.INSIGHTS -> InsightsScreen(s, nav)
                         Tab.ACCOUNTS -> AccountsScreen(s, vm, nav)
                     }

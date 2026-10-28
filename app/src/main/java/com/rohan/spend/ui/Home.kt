@@ -76,6 +76,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val cats = remember(st, ym) { st.byCatIn(ym) }
     val spent = daily.values.sum()
     val usual = s.usual()
+    Refreshable(s.refreshing, vm::refresh) {
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
@@ -118,6 +119,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             }
         }
         if (!current) item(key = "past-$ym") { BiggestPayments(ym, s, nav, 3) }
+    }
     }
 }
 
