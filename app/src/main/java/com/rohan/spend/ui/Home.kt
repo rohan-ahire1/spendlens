@@ -1,5 +1,13 @@
 package com.rohan.spend.ui
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -93,7 +101,9 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             ) { nav.push(Route.Day(it.toEpochDay())) }
         }
         item {
-            Treemap(Modifier.rise(2).padding(top = 10.dp), cats, { nav.push(Route.Category(it)) }, { nav.push(Route.Cats(ym.toString())) })
+            Crossfade(ym, Modifier.rise(2), tween(320), label = "treemap") { _ ->
+                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it)) }, { nav.push(Route.Cats(ym.toString())) })
+            }
         }
         if (current) item {
             val dayTxns = st.onDay(sel)
@@ -153,9 +163,6 @@ private fun Calendar(
     modifier: Modifier, ym: YearMonth, today: LocalDate, daily: Map<LocalDate, Long>, perDay: Long, sel: LocalDate,
     prev: (() -> Unit)?, next: (() -> Unit)?, onPick: (LocalDate) -> Unit,
 ) {
-    val first = ym.atDay(1)
-    val offset = first.dayOfWeek.value - 1
-    val weeks = (offset + ym.lengthOfMonth() + 6) / 7
     val gap = 6.dp
     FrostCard(modifier, pad = 14.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -170,6 +177,18 @@ private fun Calendar(
                     Text(it, style = T.tiny.copy(color = C.faint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
                 }
             }
+            AnimatedContent(
+                ym, label = "month",
+                transitionSpec = {
+                    val dir = if (targetState > initialState) 1 else -1
+                    (slideInHorizontally(tween(320)) { it / 3 * dir } + fadeIn(tween(320))) togetherWith
+                        (slideOutHorizontally(tween(320)) { -it / 3 * dir } + fadeOut(tween(200))) using SizeTransform(clip = false)
+                },
+            ) { ym ->
+            val first = ym.atDay(1)
+            val offset = first.dayOfWeek.value - 1
+            val weeks = (offset + ym.lengthOfMonth() + 6) / 7
+            Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             repeat(weeks) { w ->
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     repeat(7) { i ->
@@ -181,6 +200,8 @@ private fun Calendar(
                         }
                     }
                 }
+            }
+            }
             }
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Less", style = T.tiny)
