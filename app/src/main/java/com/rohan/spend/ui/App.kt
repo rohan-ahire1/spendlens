@@ -112,7 +112,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
             }
         }
         if (nav.top is Route.Tabbed) {
-            BottomBar(currentTab, nav::tab, { nav.push(Route.Search) }, Modifier.align(Alignment.BottomCenter))
+            BottomBar(currentTab, nav::tab, Modifier.align(Alignment.BottomCenter))
         }
     }
 }
