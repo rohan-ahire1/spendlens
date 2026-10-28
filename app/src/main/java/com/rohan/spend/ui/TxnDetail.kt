@@ -125,7 +125,7 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
         ModalBottomSheet({ picking = false }, sheetState = sheet, containerColor = Color(0xFFF7F8FB)) {
             CategoryPicker(
                 current = cat,
-                options = if (t.debit) Cat.spendable else Cat.entries.filter { it !in Cat.spendable },
+                options = if (t.debit) Cat.spendable else Cat.entries.filter { it !in Cat.spendable || it == Cat.TRANSFER },
                 keep = keep, onKeep = { keep = it }, payee = t.payee,
             ) { picked ->
                 vm.setCategory(t, picked, keep)

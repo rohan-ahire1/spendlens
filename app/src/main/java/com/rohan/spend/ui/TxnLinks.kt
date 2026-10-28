@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
 import com.rohan.spend.data.inr
@@ -26,6 +27,10 @@ fun TxnLinks(t: Txn, s: AppState, nav: Nav) {
     val rows = buildList<Pair<String, Txn>> {
         s.refundsOf[t.id]?.forEach { r -> add("${inr(r.amount)} refunded on ${r.date().format(shortDay)}" to r) }
         s.refundOf[t.id]?.let(s.byId::get)?.let { o -> add("Refund for ${o.payee} on ${o.date().format(shortDay)}" to o) }
+        s.transfers[t.id]?.let(s.byId::get)?.takeIf { s.catOf(t) == Cat.TRANSFER }?.let { o ->
+            val where = bankName(o.sender) + (o.account?.let { " ··$it" } ?: "")
+            add((if (t.debit) "Moved to your $where" else "Moved from your $where") to o)
+        }
     }
     if (rows.isEmpty()) return
     FrostCard(Modifier.padding(top = 12.dp), pad = 6.dp) {

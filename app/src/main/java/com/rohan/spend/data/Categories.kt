@@ -1,7 +1,7 @@
 package com.rohan.spend.data
 
 /** Where a category's money goes when we total things up. */
-enum class Bucket { LIVING, FAMILY, INVESTING, MOVE, ONE_OFF, INCOME }
+enum class Bucket { LIVING, FAMILY, INVESTING, MOVE, ONE_OFF, INCOME, OWN }
 
 enum class Cat(val label: String, val bucket: Bucket) {
     GROCERIES("Groceries", Bucket.LIVING),
@@ -25,7 +25,8 @@ enum class Cat(val label: String, val bucket: Bucket) {
     ONE_OFF("One-off", Bucket.ONE_OFF),
     SALARY("Salary", Bucket.INCOME),
     REFUND("Refund", Bucket.INCOME),
-    RECEIVED("Money in", Bucket.INCOME);
+    RECEIVED("Money in", Bucket.INCOME),
+    TRANSFER("Own transfer", Bucket.OWN);
 
     companion object {
         val spendable = entries.filter { it.bucket != Bucket.INCOME }

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.automirrored.rounded.Undo
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.ContentCut
 import androidx.compose.material.icons.rounded.CreditCard
 import androidx.compose.material.icons.rounded.CreditScore
@@ -107,4 +108,5 @@ fun Cat.style(): CatStyle = when (this) {
     Cat.SALARY -> CatStyle(Icons.Rounded.Work, Color(0xFF178A57), Color(0xFFDFF5EA))
     Cat.REFUND -> CatStyle(Icons.AutoMirrored.Rounded.Undo, Color(0xFF178A57), Color(0xFFDFF5EA))
     Cat.RECEIVED -> CatStyle(Icons.Rounded.SouthWest, Color(0xFF178A57), Color(0xFFDFF5EA))
+    Cat.TRANSFER -> CatStyle(Icons.Rounded.SwapHoriz, Color(0xFF5F6270), Color(0xFFE9EAF0))
 }

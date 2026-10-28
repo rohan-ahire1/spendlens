@@ -45,6 +45,29 @@ class LinksTest {
         assertTrue(Refunds.match(listOf(pay, twin, back)) { it === back }.isEmpty())
     }
 
+    @Test fun transferPairsDebitWithCreditOnAnotherAccount() {
+        val hour = 3600_000L
+        val out = t(20_000_00, true, "Rohan Ahire", 0, account = "1234")
+        val inn = t(20_000_00, false, "Rohan Ahire", hour, account = "9876")
+        val same = t(20_000_00, false, "Friend", 0, account = "1234")
+        val late = t(20_000_00, false, "Friend", 3 * hour, account = "5555")
+        val m = Transfers.find(listOf(out, inn, same, late))
+        assertEquals(mapOf(out.id to inn.id, inn.id to out.id), m)
+    }
+
+    @Test fun transferIgnoresCardsCashAndSkippedAndPairsOnce() {
+        val card = t(5_000_00, true, "Amazon", 0, account = "5678", channel = Channel.CARD)
+        val atm = t(5_000_00, true, "Cash withdrawal", 0, account = "1234", channel = Channel.ATM)
+        val refund = t(5_000_00, false, "Amazon", 60_000, account = "9876")
+        assertTrue(Transfers.find(listOf(card, atm, refund)) { it === refund }.isEmpty())
+        assertTrue(Transfers.find(listOf(card, atm, refund)).isEmpty())
+
+        val a = t(1_000_00, true, "Me", 0, account = "1111")
+        val b = t(1_000_00, true, "Me", 1000, account = "1111")
+        val c = t(1_000_00, false, "Me", 2000, account = "2222")
+        assertEquals(2, Transfers.find(listOf(a, b, c)).size)
+    }
+
     @Test fun netScalesShareByRefund() {
         assertEquals(1000_00L, Refunds.net(1000_00, null, 0))
         assertEquals(600_00L, Refunds.net(1000_00, null, 400_00))

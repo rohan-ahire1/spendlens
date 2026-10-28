@@ -12,6 +12,7 @@ import com.rohan.spend.data.Categorizer
 import com.rohan.spend.data.Counting
 import com.rohan.spend.data.Prefs
 import com.rohan.spend.data.Refunds
+import com.rohan.spend.data.Transfers
 import com.rohan.spend.data.SmsSource
 import com.rohan.spend.data.Snapshot
 import com.rohan.spend.data.TxnCache
@@ -56,7 +57,9 @@ data class AppState(
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
-    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) { txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Categorizer.auto(t) }
+    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) {
+        txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Cat.TRANSFER.takeIf { t.id in transfers } ?: Categorizer.auto(t)
+    }
     val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
     val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today, ::net) }
     fun usual(): Long = if (target > 0) target else stats.usualMonth
@@ -70,6 +73,8 @@ data class AppState(
     }
     /** What a payment counts for in totals. Credits are left as they are. */
     fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, null, refundsOf[t.id]?.sumOf { it.amount } ?: 0)
+    /** Each side of a move between the user's own accounts → the other side. */
+    val transfers: Map<Long, Long> by lazy { Transfers.find(txns) { Categorizer.auto(it) == Cat.REFUND } }
 }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
