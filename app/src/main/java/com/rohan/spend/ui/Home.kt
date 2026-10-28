@@ -254,7 +254,7 @@ private fun Treemap(modifier: Modifier, cats: List<CatTotal>, open: (com.rohan.s
             Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 cats.drop(2).take(2).forEach { c -> Tile(c, Modifier.weight(1f).fillMaxHeight(), 14.dp, small = true) { open(c.cat) } }
                 val rest = cats.drop(4).sumOf { it.total }
-                if (rest > 0) SmallTile("More", inrShort(rest).removePrefix("₹"), Color(0xFFE4E5EC), C.ink, Modifier.weight(1f).fillMaxHeight(), more)
+                if (rest > 0) SmallTile("More", inrShort(rest).removePrefix("₹"), C.ink, Color.White, Modifier.weight(1f).fillMaxHeight(), more)
             }
         }
     }
@@ -263,15 +263,15 @@ private fun Treemap(modifier: Modifier, cats: List<CatTotal>, open: (com.rohan.s
 @Composable
 private fun Tile(c: CatTotal, modifier: Modifier, radius: Dp, big: Boolean = false, small: Boolean = false, onClick: () -> Unit) {
     val style = c.cat.style()
-    if (small) return SmallTile(null, inrShort(c.total).removePrefix("₹"), style.bg, style.fg, modifier, onClick) {
-        Icon(style.icon, c.cat.label, tint = style.fg, modifier = Modifier.size(16.dp))
+    if (small) return SmallTile(null, inrShort(c.total).removePrefix("₹"), style.fg, Color.White, modifier, onClick) {
+        Icon(style.icon, c.cat.label, tint = Color.White, modifier = Modifier.size(16.dp))
     }
     Column(
-        modifier.clip(RoundedCornerShape(radius)).background(style.bg).press(onClick).padding(12.dp),
+        modifier.clip(RoundedCornerShape(radius)).background(style.fg).press(onClick).padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(c.cat.label, style = T.label.copy(color = style.fg), maxLines = 1)
-        Text(inr(c.total), style = (if (big) T.h2 else T.h3.copy(fontWeight = FontWeight.Bold)).copy(color = C.ink, fontFeatureSettings = "tnum"), maxLines = 1)
+        Text(c.cat.label, style = T.label.copy(color = Color.White.copy(alpha = .85f)), maxLines = 1)
+        Text(inr(c.total), style = (if (big) T.h2 else T.h3.copy(fontWeight = FontWeight.Bold)).copy(color = Color.White, fontFeatureSettings = "tnum"), maxLines = 1)
     }
 }
 
@@ -282,6 +282,6 @@ private fun SmallTile(label: String?, amount: String, bg: Color, fg: Color, modi
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
         if (label != null) Text(label, style = T.tiny.copy(color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, softWrap = false) else icon()
-        Text(amount, style = T.tiny.copy(color = C.ink, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"), maxLines = 1)
+        Text(amount, style = T.tiny.copy(color = fg, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"), maxLines = 1)
     }
 }
