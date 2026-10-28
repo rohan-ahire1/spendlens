@@ -34,9 +34,14 @@ import androidx.compose.ui.unit.sp
 import com.rohan.spend.R
 import com.rohan.spend.data.Cat
 
-/** Frost Light palette, lifted from the design canvas. */
+/** Month-at-a-glance palette: flat cool ground, white cards, indigo heat scale. */
 object C {
-    val bg = Color(0xFFEEF0F6)
+    val bg = Color(0xFFF3F4F8)
+    val card = Color.White
+    val heat = listOf(Color(0xFFE9E8FB), Color(0xFFC3BFF5), Color(0xFF7D72E8), Color(0xFF2D1FB3))
+    val noSpend = Color(0xFFEEEFF4)
+    val today = Color(0xFFFF7A45)
+    val barOff = Color(0xFFB6B7C4)
     val ink = Color(0xFF15161B)
     val muted = Color(0xFF5F6270)
     val subtle = Color(0xFF6B6E7A)
@@ -63,6 +68,7 @@ val Plex = FontFamily(plex(400), plex(500), plex(600), plex(700))
 
 object T {
     private const val TNUM = "tnum"
+    val display = TextStyle(fontFamily = Plex, fontSize = 52.sp, fontWeight = FontWeight.Bold, letterSpacing = (-2.3).sp, color = C.ink, lineHeight = 54.sp, fontFeatureSettings = TNUM)
     val hero = TextStyle(fontFamily = Plex, fontSize = 44.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.6).sp, color = C.ink, fontFeatureSettings = TNUM)
     val big = TextStyle(fontFamily = Plex, fontSize = 34.sp, fontWeight = FontWeight.Bold, letterSpacing = (-1.2).sp, color = C.ink, lineHeight = 37.sp)
     val title = TextStyle(fontFamily = Plex, fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.9).sp, color = C.ink)
