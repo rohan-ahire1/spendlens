@@ -143,7 +143,7 @@ private fun Calendar(modifier: Modifier, today: LocalDate, daily: Map<LocalDate,
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                 listOf("M", "T", "W", "T", "F", "S", "S").forEach {
-                    Text(it, style = T.tiny.copy(color = C.faint, fontSize = 11.sp), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                    Text(it, style = T.tiny.copy(color = C.faint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
                 }
             }
             repeat(weeks) { w ->
@@ -181,9 +181,9 @@ private fun RowScope.DayCell(d: LocalDate, amount: Long, perDay: Long, future: B
             .press(onClick).padding(horizontal = 5.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text("${d.dayOfMonth}", style = T.tiny.copy(color = fg, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, lineHeight = 12.sp))
+        Text("${d.dayOfMonth}", style = T.tiny.copy(color = fg, fontSize = 12.sp, fontWeight = FontWeight.Bold, lineHeight = 13.sp))
         if (!future && amount > 0) Text(
-            short(amount), style = T.tiny.copy(color = fg, fontSize = 9.sp, lineHeight = 10.sp, fontFeatureSettings = "tnum"),
+            short(amount), style = T.tiny.copy(color = fg, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, lineHeight = 11.sp, fontFeatureSettings = "tnum"),
             textAlign = TextAlign.End, maxLines = 1, softWrap = false, modifier = Modifier.fillMaxWidth(),
         )
     }
@@ -227,7 +227,7 @@ private fun SmallTile(label: String?, amount: String, bg: Color, fg: Color, modi
         modifier.clip(RoundedCornerShape(14.dp)).background(bg).press(onClick).padding(8.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        if (label != null) Text(label, style = T.tiny.copy(color = fg, fontSize = 11.sp), maxLines = 1, softWrap = false) else icon()
+        if (label != null) Text(label, style = T.tiny.copy(color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), maxLines = 1, softWrap = false) else icon()
         Text(amount, style = T.tiny.copy(color = C.ink, fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"), maxLines = 1)
     }
 }

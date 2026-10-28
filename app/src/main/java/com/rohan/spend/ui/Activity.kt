@@ -122,7 +122,7 @@ private fun Fortnight(modifier: Modifier, days: List<Pair<LocalDate, Long>>, per
                 days.forEach { (d, _) ->
                     Text(
                         d.dayOfMonth.toString(), textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
-                        style = T.tiny.copy(fontSize = 10.sp, color = if (d == sel) C.today else C.faint, fontWeight = if (d == sel) FontWeight.Bold else FontWeight.Normal),
+                        style = T.tiny.copy(fontSize = 11.sp, color = if (d == sel) C.today else C.faint, fontWeight = if (d == sel) FontWeight.Bold else FontWeight.Normal),
                     )
                 }
             }
