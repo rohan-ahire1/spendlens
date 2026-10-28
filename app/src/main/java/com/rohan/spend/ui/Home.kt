@@ -117,6 +117,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 }
             }
         }
+        if (!current) item(key = "past-$ym") { BiggestPayments(ym, s, nav, 3) }
     }
 }
 
