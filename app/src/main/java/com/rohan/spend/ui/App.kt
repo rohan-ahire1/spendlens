@@ -38,6 +38,7 @@ sealed interface Route {
     data class Day(val epochDay: Long) : Route
     data class Cats(val month: String) : Route
     data object Search : Route
+    data object Hidden : Route
 }
 
 /** One screen on the stack. [key] is unique so two visits to the same route keep separate state. */
@@ -83,6 +84,7 @@ class Nav(start: List<Entry>, private var next: Int) {
             is Route.Day -> "day:${r.epochDay}"
             is Route.Cats -> "cats:${r.month}"
             Route.Search -> "search"
+            Route.Hidden -> "hidden"
         }
 
         private fun decode(s: String): Route? = runCatching {
@@ -94,6 +96,7 @@ class Nav(start: List<Entry>, private var next: Int) {
                 "day" -> Route.Day(p[1].toLong())
                 "cats" -> Route.Cats(p[1])
                 "search" -> Route.Search
+                "hidden" -> Route.Hidden
                 else -> null
             }
         }.getOrNull()
@@ -170,6 +173,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                     is Route.Day -> DayScreen(java.time.LocalDate.ofEpochDay(r.epochDay), s, nav)
                     Route.Search -> SearchScreen(s, nav)
                     is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
+                    Route.Hidden -> HiddenScreen(s, vm, nav)
                 }
             }
         }

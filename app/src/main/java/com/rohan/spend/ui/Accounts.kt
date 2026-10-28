@@ -105,6 +105,10 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                     Setting("Payee rules", "${s.payeeRules.size} saved", onClick = { showRules = true }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
+                    val hiddenCount = s.txns.count { it.id in s.hidden }
+                    Setting("Hidden payments", if (hiddenCount == 0) "None" else "$hiddenCount left out of totals", onClick = { nav.push(Route.Hidden) }) {
+                        Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
+                    }
                     Setting("Export to CSV", "${s.visible.size} transactions", onClick = { export.launch("spend-${LocalDate.now()}.csv") }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
