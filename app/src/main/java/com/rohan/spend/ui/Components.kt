@@ -290,40 +290,27 @@ enum class Tab(val label: String, val icon: androidx.compose.ui.graphics.vector.
     ACCOUNTS("Accounts", Icons.Rounded.AccountBalance),
 }
 
-/** Floating dark pill with a white indicator that slides between tabs, plus a matching search button. */
+/** Floating dark pill of text tabs with a white indicator that slides between them. */
 @Composable
-fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier) {
-    val barH = 64.dp
-    val inset = 5.dp
-    // Fade the list out under the bar so rows never show through the glass.
+fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, modifier: Modifier = Modifier) {
+    val gap = 4.dp
+    // Fade the list out under the bar so rows never show through it.
     val scrim = Brush.verticalGradient(0f to Color.Transparent, .45f to C.bg.copy(alpha = .95f), 1f to C.bg)
-    Row(
-        modifier.fillMaxWidth().background(scrim).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        BoxWithConstraints(Modifier.weight(1f).height(barH).clip(CircleShape).background(C.ink).padding(inset)) {
-            val itemW = maxWidth / Tab.entries.size
-            val x by animateDpAsState(itemW * selected.ordinal, spring(dampingRatio = .75f, stiffness = 380f), label = "pill")
+    Box(modifier.fillMaxWidth().background(scrim).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 16.dp)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().height(60.dp).clip(CircleShape).background(C.ink).padding(5.dp)) {
+            val n = Tab.entries.size
+            val itemW = (maxWidth - gap * (n - 1)) / n
+            val x by animateDpAsState((itemW + gap) * selected.ordinal, spring(dampingRatio = .75f, stiffness = 380f), label = "pill")
             Box(Modifier.offset(x = x).width(itemW).fillMaxHeight().clip(CircleShape).background(Color.White))
-            Row(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap)) {
                 Tab.entries.forEach { tab ->
                     val on = tab == selected
                     val tint by animateColorAsState(if (on) C.ink else C.barOff, label = "tabTint")
-                    Column(
-                        Modifier.weight(1f).fillMaxHeight().clip(CircleShape).press({ onSelect(tab) }, haptic = true),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
-                    ) {
-                        Icon(tab.icon, tab.label, tint = tint, modifier = Modifier.size(21.dp))
-                        Spacer(Modifier.height(2.dp))
-                        Text(tab.label, style = T.tiny.copy(color = tint, fontSize = 11.sp, fontWeight = FontWeight.Medium), maxLines = 1)
+                    Box(Modifier.weight(1f).fillMaxHeight().clip(CircleShape).press({ onSelect(tab) }, haptic = true), contentAlignment = Alignment.Center) {
+                        Text(tab.label, style = TextStyle(fontFamily = Plex, fontSize = 13.sp, color = tint, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal), maxLines = 1)
                     }
                 }
             }
-        }
-        Box(Modifier.size(barH).press(onSearch, haptic = true).clip(CircleShape).background(C.ink), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Search, "Search", tint = Color.White, modifier = Modifier.size(22.dp))
         }
     }
 }
