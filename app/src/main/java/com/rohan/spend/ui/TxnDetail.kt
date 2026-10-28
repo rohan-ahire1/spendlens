@@ -159,19 +159,21 @@ private fun CategoryPicker(current: Cat, options: List<Cat>, keep: Boolean, onKe
     Column(Modifier.padding(horizontal = 20.dp).padding(bottom = 28.dp)) {
         Text("Category", style = T.h2)
         Spacer(Modifier.height(14.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(10.dp), maxItemsInEachRow = 4) {
             options.forEachIndexed { i, c ->
                 val on = c == current
                 Column(
-                    Modifier.width(76.dp).rise(i).press({ onPick(c) }, haptic = true)
+                    Modifier.weight(1f).rise(i).press({ onPick(c) }, haptic = true)
                         .clip(RoundedCornerShape(16.dp)).background(if (on) Color.White else Color.Transparent).padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     CatIcon(c, 44.dp)
                     Spacer(Modifier.height(6.dp))
-                    Text(c.label, style = T.tiny.copy(color = if (on) C.ink else C.subtle), textAlign = TextAlign.Center, maxLines = 2)
+                    Text(c.label, style = T.tiny.copy(color = if (on) C.ink else C.subtle), textAlign = TextAlign.Center, maxLines = 1, softWrap = false)
                 }
             }
+            // Pad the last row so its cells keep the same width as the rows above.
+            repeat((4 - options.size % 4) % 4) { Spacer(Modifier.weight(1f)) }
         }
         Spacer(Modifier.height(18.dp))
         Row(Modifier.fillMaxWidth().frost(18.dp).padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
