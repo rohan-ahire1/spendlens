@@ -54,6 +54,7 @@ import com.rohan.spend.data.Cat
 import com.rohan.spend.data.RuleInfo
 import com.rohan.spend.data.ruleInfos
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.text.style.TextOverflow
 import com.rohan.spend.data.Stats
 import com.rohan.spend.data.inr
@@ -165,11 +166,14 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 Spacer(Modifier.height(10.dp))
                 if (s.payeeRules.isEmpty()) EmptyNote("None yet. Change a category and keep \"Do this for all\" on.")
                 val rules = remember(s.payeeRules, s.txns) { ruleInfos(s.payeeRules, s.txns) }
-                LazyColumn {
+                LazyColumn(Modifier.weight(1f, fill = false)) {
                     items(rules, key = { it.key }) { r ->
-                        RuleRow(r) { vm.removeRule(r.key) }
+                        RuleRow(r) { vm.undoable("Rule for ${r.name} removed") { vm.removeRule(r.key) } }
                     }
                 }
+                // The sheet covers the app-wide host, so it shows its own.
+                val snack by vm.snack.collectAsStateWithLifecycle()
+                SnackHost(snack, vm::undo, Modifier.padding(top = 8.dp))
             }
         }
     }

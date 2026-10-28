@@ -174,4 +174,46 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
+    private val _snack = MutableStateFlow<Snack?>(null)
+    val snack: StateFlow<Snack?> = _snack
+    private var undoFn: (() -> Unit)? = null
+    private var snackJob: Job? = null
+    private var snackId = 0L
+
+    /** Shows [text] at the bottom for a few seconds, with Undo when [undo] is given. Main thread only. */
+    fun say(text: String, undo: (() -> Unit)? = null) {
+        val s = Snack(++snackId, text, undo != null)
+        undoFn = undo
+        _snack.value = s
+        snackJob?.cancel()
+        snackJob = viewModelScope.launch {
+            delay(if (undo != null) 5000 else 3500)
+            if (_snack.value?.id == s.id) { _snack.value = null; undoFn = null }
+        }
+    }
+
+    fun undo() {
+        val f = undoFn ?: return
+        undoFn = null
+        snackJob?.cancel()
+        _snack.value = null
+        f()
+    }
+
+    /** Runs [change], then offers Undo that puts back exactly the edits it made, in prefs too. */
+    fun undoable(text: String, change: () -> Unit) {
+        val before = Edits.of(_state.value)
+        change()
+        val after = Edits.of(_state.value)
+        if (before == after) return
+        say(text) { putEdits(Edits.of(_state.value).revert(before, after)) }
+    }
+
+    private fun putEdits(e: Edits) {
+        prefs.payeeRules = e.rules
+        prefs.txnCats = e.txnCats
+        prefs.hidden = e.hidden
+        _state.update { it.copy(payeeRules = e.rules, txnCats = e.txnCats, hidden = e.hidden) }
+    }
 }

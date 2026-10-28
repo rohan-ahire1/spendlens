@@ -41,7 +41,7 @@ fun HiddenScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                     TxnRow(t, s.catOf(t), s.notes[t.id], { nav.push(Route.TxnDetail(t.id)) }, showDay = true)
                 }
                 Spacer(Modifier.width(10.dp))
-                RoundButton(Icons.Rounded.Visibility, "Count again", { vm.toggleHidden(t) }, size = 36.dp)
+                RoundButton(Icons.Rounded.Visibility, "Count again", { vm.undoable("${t.payee} counted again") { vm.toggleHidden(t) } }, size = 36.dp)
             }
         }
     }

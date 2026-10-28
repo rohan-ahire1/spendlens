@@ -180,5 +180,11 @@ private fun Main(vm: AppViewModel, s: AppState) {
         if (nav.top.route is Route.Tabbed) {
             BottomBar(currentTab, nav::tab, Modifier.align(Alignment.BottomCenter))
         }
+        // Sits just above the floating bar on tabs, and near the bottom edge on detail screens.
+        val snack by vm.snack.collectAsStateWithLifecycle()
+        val lift by androidx.compose.animation.core.animateDpAsState(
+            if (nav.top.route is Route.Tabbed) SnackLift else SnackLiftDetail, label = "snackLift",
+        )
+        SnackHost(snack, vm::undo, Modifier.align(Alignment.BottomCenter).snackPadding(lift))
     }
 }

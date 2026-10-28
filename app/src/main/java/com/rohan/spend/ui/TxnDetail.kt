@@ -98,12 +98,14 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
         }
 
         FrostCard(Modifier.rise(2).padding(top = 12.dp), pad = 6.dp) {
-            Line("Always file ${t.payee.take(18)} here") { FrostSwitch(always) { vm.setAlways(t, it) } }
+            Line("Always file ${t.payee.take(18)} here") { FrostSwitch(always) { on ->
+                vm.undoable(if (on) "${t.payee} always goes to ${cat.label}" else "Rule for ${t.payee} removed") { vm.setAlways(t, on) }
+            } }
         }
 
         Row(Modifier.rise(3).padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Chip("Change category", false, { picking = true })
-            Chip(if (hidden) "Count again" else "Hide", false, { vm.toggleHidden(t) })
+            Chip(if (hidden) "Count again" else "Hide", false, { vm.undoable(if (hidden) "Counted again" else "Hidden from totals") { vm.toggleHidden(t) } })
             Chip(if (showSms) "Hide SMS" else "See SMS", showSms, { showSms = !showSms })
         }
         if (showSms) {
@@ -127,7 +129,8 @@ fun TxnScreen(t: Txn, s: AppState, vm: AppViewModel, nav: Nav) {
                 options = if (t.debit) Cat.spendable else Cat.entries.filter { it !in Cat.spendable },
                 keep = keep, onKeep = { keep = it }, payee = t.payee,
             ) { picked ->
-                vm.setCategory(t, picked, keep)
+                val msg = if (keep) "All of ${t.payee} moved to ${picked.label}" else "Moved to ${picked.label}"
+                vm.undoable(msg) { vm.setCategory(t, picked, keep) }
                 picking = false
             }
         }
