@@ -20,8 +20,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,11 +33,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,10 +48,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rohan.spend.data.CatTotal
-import com.rohan.spend.data.Period
 import com.rohan.spend.data.inr
 import com.rohan.spend.data.inrShort
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle as JTextStyle
 import java.util.Locale
@@ -55,7 +61,12 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val st = s.stats
     val today = LocalDate.now()
     val sel = today
-    val spent = st.spent(Period.MONTH)
+    var back by rememberSaveable { mutableStateOf(0L) }
+    val ym = st.thisMonth.minusMonths(back)
+    val current = back == 0L
+    val daily = remember(st, ym) { st.dailyIn(ym) }
+    val cats = remember(st, ym) { st.byCatIn(ym) }
+    val spent = daily.values.sum()
     val usual = s.usual()
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
@@ -73,14 +84,18 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 }
             }
         }
-        item { Headline(Modifier.rise(0), today, spent, usual) }
+        item { Headline(Modifier.rise(0), ym, current, spent, usual) }
         item {
-            Calendar(Modifier.rise(1).padding(top = 18.dp), today, st.daily, usual / today.lengthOfMonth(), sel) { nav.push(Route.Day(it.toEpochDay())) }
+            Calendar(
+                Modifier.rise(1).padding(top = 18.dp), ym, today, daily, usual / ym.lengthOfMonth(), sel,
+                prev = if (ym > st.firstMonth) ({ back += 1 }) else null,
+                next = if (!current) ({ back -= 1 }) else null,
+            ) { nav.push(Route.Day(it.toEpochDay())) }
         }
         item {
-            Treemap(Modifier.rise(2).padding(top = 10.dp), st.byCat(Period.MONTH), { nav.push(Route.Category(it)) }, { nav.tab(Tab.INSIGHTS) })
+            Treemap(Modifier.rise(2).padding(top = 10.dp), cats, { nav.push(Route.Category(it)) }, { nav.push(Route.Cats(ym.toString())) })
         }
-        item {
+        if (current) item {
             val dayTxns = st.onDay(sel)
             SectionTitle(dayLabel(sel), Modifier.rise(3)) {
                 Text(inr(st.daily[sel] ?: 0L), style = T.num.copy(color = C.muted))
@@ -96,10 +111,11 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
 }
 
 @Composable
-private fun Headline(modifier: Modifier, today: LocalDate, spent: Long, usual: Long) {
+private fun Headline(modifier: Modifier, ym: YearMonth, current: Boolean, spent: Long, usual: Long) {
     Row(modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
-            Text("${today.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())} so far", style = T.label)
+            val name = ym.month.getDisplayName(JTextStyle.FULL, Locale.getDefault())
+            Text(if (current) "$name so far" else if (ym.year == LocalDate.now().year) "Spent in $name" else "Spent in $name ${ym.year}", style = T.label)
             CountUp(spent, T.display)
         }
         if (usual > 0) Column(Modifier.padding(bottom = 6.dp), horizontalAlignment = Alignment.End) {
@@ -133,13 +149,22 @@ fun short(paise: Long): String {
 }
 
 @Composable
-private fun Calendar(modifier: Modifier, today: LocalDate, daily: Map<LocalDate, Long>, perDay: Long, sel: LocalDate, onPick: (LocalDate) -> Unit) {
-    val first = today.withDayOfMonth(1)
+private fun Calendar(
+    modifier: Modifier, ym: YearMonth, today: LocalDate, daily: Map<LocalDate, Long>, perDay: Long, sel: LocalDate,
+    prev: (() -> Unit)?, next: (() -> Unit)?, onPick: (LocalDate) -> Unit,
+) {
+    val first = ym.atDay(1)
     val offset = first.dayOfWeek.value - 1
-    val weeks = (offset + today.lengthOfMonth() + 6) / 7
+    val weeks = (offset + ym.lengthOfMonth() + 6) / 7
     val gap = 6.dp
     FrostCard(modifier, pad = 14.dp) {
         Column(verticalArrangement = Arrangement.spacedBy(gap)) {
+            Row(Modifier.padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(ym.format(DateTimeFormatter.ofPattern("MMMM yyyy")), style = T.h3, modifier = Modifier.weight(1f))
+                MonthArrow(Icons.AutoMirrored.Rounded.KeyboardArrowLeft, "Previous month", prev)
+                Spacer(Modifier.width(6.dp))
+                MonthArrow(Icons.AutoMirrored.Rounded.KeyboardArrowRight, "Next month", next)
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                 listOf("M", "T", "W", "T", "F", "S", "S").forEach {
                     Text(it, style = T.tiny.copy(color = C.faint, fontSize = 12.sp, fontWeight = FontWeight.SemiBold), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
@@ -149,7 +174,7 @@ private fun Calendar(modifier: Modifier, today: LocalDate, daily: Map<LocalDate,
                 Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
                     repeat(7) { i ->
                         val n = w * 7 + i - offset + 1
-                        if (n < 1 || n > today.lengthOfMonth()) Spacer(Modifier.weight(1f))
+                        if (n < 1 || n > ym.lengthOfMonth()) Spacer(Modifier.weight(1f))
                         else {
                             val d = first.withDayOfMonth(n)
                             DayCell(d, daily[d] ?: 0L, perDay, d.isAfter(today), d == sel) { onPick(d) }
@@ -166,6 +191,15 @@ private fun Calendar(modifier: Modifier, today: LocalDate, daily: Map<LocalDate,
             }
         }
     }
+}
+
+@Composable
+private fun MonthArrow(icon: ImageVector, label: String, onClick: (() -> Unit)?) {
+    Box(
+        Modifier.size(34.dp).clip(CircleShape).background(C.bg).alpha(if (onClick != null) 1f else .35f)
+            .then(if (onClick != null) Modifier.press(onClick) else Modifier),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, label, tint = C.ink, modifier = Modifier.size(20.dp)) }
 }
 
 @Composable
