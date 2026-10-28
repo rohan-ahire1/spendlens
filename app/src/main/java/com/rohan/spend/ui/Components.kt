@@ -83,7 +83,8 @@ import kotlin.math.roundToLong
  * a moving background forces every card shadow to redraw each frame, which costs battery.
  */
 @Composable
-fun FrostBackground(modifier: Modifier = Modifier, animate: Boolean = true, content: @Composable BoxScope.() -> Unit) {
+fun FrostBackground(modifier: Modifier = Modifier, animate: Boolean = true, blobs: Boolean = true, content: @Composable BoxScope.() -> Unit) {
+    val glow by animateFloatAsState(if (blobs) 1f else 0f, tween(900), label = "glow")
     val pa = remember { Animatable(.5f) }
     val pb = remember { Animatable(.5f) }
     LaunchedEffect(animate) {
@@ -96,13 +97,13 @@ fun FrostBackground(modifier: Modifier = Modifier, animate: Boolean = true, cont
         while (true) { pb.animateTo(0f, tween(9500, easing = LinearEasing)); pb.animateTo(1f, tween(19000, easing = LinearEasing)) }
     }
     Box(modifier.fillMaxSize().background(C.bg)) {
-        Canvas(Modifier.fillMaxSize()) {
+        if (glow > 0f) Canvas(Modifier.fillMaxSize()) {
             val a = pa.value
             val b = pb.value
             val w = size.width
             val h = size.height
             fun blob(color: Color, x: Float, y: Float, r: Float) = drawCircle(
-                Brush.radialGradient(listOf(color.copy(alpha = .55f), color.copy(alpha = 0f)), Offset(x, y), r),
+                Brush.radialGradient(listOf(color.copy(alpha = .55f * glow), color.copy(alpha = 0f)), Offset(x, y), r),
                 radius = r, center = Offset(x, y),
             )
             blob(C.tint, w * (.15f + .25f * a), h * (.08f + .06f * b), w * .75f)
@@ -113,18 +114,10 @@ fun FrostBackground(modifier: Modifier = Modifier, animate: Boolean = true, cont
     }
 }
 
-private val frostFill = Brush.verticalGradient(listOf(Color.White.copy(alpha = .82f), Color.White.copy(alpha = .55f)))
-
-/** The frosted glass card look. */
+/** A flat white card on the cool ground. No shadows: they stalled rendering to ~2s a frame. */
 fun Modifier.frost(radius: Dp = 24.dp, shape: Shape = RoundedCornerShape(radius)): Modifier = this
-    // A drawn 2dp drop instead of elevation shadows, which stalled rendering to ~2s a frame.
-    .drawBehind {
-        val o = shape.createOutline(size, layoutDirection, this)
-        translate(top = 2.dp.toPx()) { drawOutline(o, Color(0x0F15161B)) }
-    }
     .clip(shape)
-    .background(frostFill)
-    .border(1.dp, Color.White.copy(alpha = .9f), shape)
+    .background(C.card)
 
 @Composable
 fun FrostCard(modifier: Modifier = Modifier, radius: Dp = 24.dp, pad: Dp = 18.dp, onClick: (() -> Unit)? = null, content: @Composable () -> Unit) {
@@ -297,26 +290,26 @@ enum class Tab(val label: String, val icon: androidx.compose.ui.graphics.vector.
     ACCOUNTS("Accounts", Icons.Rounded.AccountBalance),
 }
 
-/** Floating glass pill with a black indicator that slides between tabs, plus a matching search button. */
+/** Floating dark pill with a white indicator that slides between tabs, plus a matching search button. */
 @Composable
 fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, onSearch: () -> Unit, modifier: Modifier = Modifier) {
     val barH = 64.dp
     val inset = 5.dp
     // Fade the list out under the bar so rows never show through the glass.
-    val scrim = Brush.verticalGradient(0f to Color.Transparent, .45f to Color(0xF2F6F7FB), 1f to Color(0xFFF6F7FB))
+    val scrim = Brush.verticalGradient(0f to Color.Transparent, .45f to C.bg.copy(alpha = .95f), 1f to C.bg)
     Row(
         modifier.fillMaxWidth().background(scrim).navigationBarsPadding().padding(start = 16.dp, end = 16.dp, top = 28.dp, bottom = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        BoxWithConstraints(Modifier.weight(1f).height(barH).frost(shape = CircleShape).background(Color.White.copy(alpha = .55f)).padding(inset)) {
+        BoxWithConstraints(Modifier.weight(1f).height(barH).clip(CircleShape).background(C.ink).padding(inset)) {
             val itemW = maxWidth / Tab.entries.size
             val x by animateDpAsState(itemW * selected.ordinal, spring(dampingRatio = .75f, stiffness = 380f), label = "pill")
-            Box(Modifier.offset(x = x).width(itemW).fillMaxHeight().clip(CircleShape).background(C.ink))
+            Box(Modifier.offset(x = x).width(itemW).fillMaxHeight().clip(CircleShape).background(Color.White))
             Row(Modifier.fillMaxSize()) {
                 Tab.entries.forEach { tab ->
                     val on = tab == selected
-                    val tint by animateColorAsState(if (on) Color.White else C.muted, label = "tabTint")
+                    val tint by animateColorAsState(if (on) C.ink else C.barOff, label = "tabTint")
                     Column(
                         Modifier.weight(1f).fillMaxHeight().clip(CircleShape).press({ onSelect(tab) }, haptic = true),
                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -329,8 +322,8 @@ fun BottomBar(selected: Tab, onSelect: (Tab) -> Unit, onSearch: () -> Unit, modi
                 }
             }
         }
-        Box(Modifier.size(barH).press(onSearch, haptic = true).frost(shape = CircleShape).background(Color.White.copy(alpha = .55f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Rounded.Search, "Search", tint = C.ink, modifier = Modifier.size(22.dp))
+        Box(Modifier.size(barH).press(onSearch, haptic = true).clip(CircleShape).background(C.ink), contentAlignment = Alignment.Center) {
+            Icon(Icons.Rounded.Search, "Search", tint = Color.White, modifier = Modifier.size(22.dp))
         }
     }
 }
