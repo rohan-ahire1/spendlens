@@ -42,6 +42,7 @@ data class AppState(
     val autoRefresh: Boolean = true,
     val target: Long = 0,
     val refreshing: Boolean = false,
+    val budgets: Map<Cat, Long> = emptyMap(),
 ) {
     // Every screen asks for categories many times over; run the regexes once per transaction.
     private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
@@ -70,6 +71,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         countCardBills = prefs.countCardBills,
         autoRefresh = prefs.autoRefresh,
         target = prefs.target,
+        budgets = prefs.budgets,
     )
 
     fun hasPermission() = ContextCompat.checkSelfPermission(getApplication(), Manifest.permission.READ_SMS) ==
@@ -173,5 +175,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }
         }
+    }
+
+    /** 0 or less clears the budget. */
+    fun setBudget(cat: Cat, paise: Long) {
+        val b = if (paise > 0) _state.value.budgets + (cat to paise) else _state.value.budgets - cat
+        prefs.budgets = b
+        _state.update { it.copy(budgets = b) }
     }
 }
