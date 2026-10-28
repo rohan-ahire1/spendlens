@@ -179,6 +179,8 @@ fun SearchScreen(s: AppState, nav: Nav) {
                 (s.notes[t.id]?.lowercase()?.contains(term) == true) || term in (t.amount / 100).toString()
         }
     }
+    val ask = rememberAsk(q, s)
+    val shown = ask.list(hits)
     Column(Modifier.fillMaxSize().statusBarsPadding().imePadding().padding(horizontal = 20.dp)) {
         Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(
@@ -188,7 +190,7 @@ fun SearchScreen(s: AppState, nav: Nav) {
                 Icon(Icons.Rounded.Search, null, tint = C.muted, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
                 Box(Modifier.weight(1f)) {
-                    if (q.isEmpty()) Text("Payee, category, note or amount", style = T.body.copy(color = C.faint))
+                    if (q.isEmpty()) Text("Search, or ask a question", style = T.body.copy(color = C.faint))
                     BasicTextField(q, { q = it }, Modifier.fillMaxWidth().focusRequester(focus), textStyle = T.body,
                         singleLine = true, cursorBrush = SolidColor(C.tint))
                 }
@@ -198,13 +200,14 @@ fun SearchScreen(s: AppState, nav: Nav) {
         }
         if (q.isNotBlank()) {
             Row(Modifier.padding(vertical = 6.dp)) {
-                Text("${hits.size} found", style = T.label, modifier = Modifier.weight(1f))
-                Text(inr(hits.filter { it.debit }.sumOf { it.amount }) + " spent", style = T.label)
+                Text("${shown.size} found", style = T.label, modifier = Modifier.weight(1f))
+                Text(inr(shown.filter { it.debit }.sumOf { it.amount }) + " spent", style = T.label)
             }
         }
         LazyColumn(contentPadding = PaddingValues(bottom = 40.dp)) {
-            dayGroups(hits.take(300), s, nav)
-            if (q.isNotBlank() && hits.isEmpty()) item { EmptyNote("No matches for \"$q\".") }
+            askItems(ask, q, s) { q = it }
+            dayGroups(shown.take(300), s, nav)
+            if (q.isNotBlank() && shown.isEmpty()) item { EmptyNote("No matches for \"$q\".") }
         }
     }
 }
