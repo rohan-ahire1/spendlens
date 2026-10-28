@@ -73,6 +73,12 @@ class Stats(
         return months.map { it to (sums[it] ?: 0L) }
     }
 
+    /** Drops chart months from before the SMS history starts, keeping at least six bars. */
+    fun sinceHistory(months: List<Pair<YearMonth, Long>>): List<Pair<YearMonth, Long>> {
+        val first = txns.minOfOrNull { it.month() } ?: return months
+        return months.dropWhile { it.first < first }.takeIf { it.size >= 6 } ?: months.takeLast(6)
+    }
+
     /** Median of the last 6 full months that had any spending. */
     val usualMonth: Long by lazy {
         val full = monthly(7).dropLast(1).map { it.second }.filter { it > 0 }.sorted()
@@ -126,7 +132,7 @@ class Stats(
         return (now.keys + before.keys).mapNotNull { c ->
             val n = now[c] ?: 0L
             val b = before[c] ?: 0.0
-            if (b < 300_00 || n == 0L) null else Change(c, n, ((n - b) / b * 100).toInt())
+            if (b < 1_000_00 || n == 0L) null else Change(c, n, ((n - b) / b * 100).toInt())
         }.sortedByDescending { abs(it.pct) }.take(limit)
     }
 
