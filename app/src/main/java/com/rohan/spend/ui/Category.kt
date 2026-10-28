@@ -72,7 +72,8 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav, onBudget:
         st.inCat(cat).filter { if (span == Span.MONTH && past != null) it.month() == past else !it.date().isBefore(span.from(today)) }
     }
     val payees = remember(inSpan) {
-        inSpan.groupBy { it.payee }.map { (p, l) -> p to l.sumOf { st.spend(it) } }.sortedByDescending { it.second }
+        // Fully refunded or someone else's share: nothing to size a tile by.
+        inSpan.groupBy { it.payee }.map { (p, l) -> p to l.sumOf { st.spend(it) } }.filter { it.second > 0 }.sortedByDescending { it.second }
     }
     val list = inSpan.filter { payee == null || it.payee == payee }
         .let { l -> if (biggest) l.sortedByDescending { it.amount } else l.sortedByDescending { it.time } }
@@ -129,7 +130,7 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav, onBudget:
                 val rest = payees.drop(3)
                 Row(Modifier.rise(2).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     top.forEach { (name, amt) ->
-                        PayeeTile(name, inrShort(amt), payee == name, style.fg, Modifier.weight(kotlin.math.sqrt(amt.toFloat() / payees[0].second).coerceAtLeast(.55f))) {
+                        PayeeTile(name, inrShort(amt), payee == name, style.fg, Modifier.weight(kotlin.math.sqrt(amt.toFloat() / payees[0].second.coerceAtLeast(1)).coerceIn(.55f, 1f))) {
                             payee = if (payee == name) null else name
                         }
                     }
