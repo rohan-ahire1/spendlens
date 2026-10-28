@@ -55,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.rohan.spend.data.BudgetState
 import com.rohan.spend.data.CatTotal
 import com.rohan.spend.data.inr
 import com.rohan.spend.data.inrShort
@@ -76,6 +77,8 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val cats = remember(st, ym) { st.byCatIn(ym) }
     val spent = daily.values.sum()
     val usual = s.usual()
+    val budgets = s.budgetsIn(ym)
+    Refreshable(s.refreshing, vm::refresh) {
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
@@ -102,9 +105,10 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         }
         item {
             Crossfade(ym, Modifier.rise(2), tween(320), label = "treemap") { _ ->
-                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it, if (current) null else ym.toString())) }, { nav.push(Route.Cats(ym.toString())) })
+                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it, if (current) null else ym.toString())) }, { nav.push(Route.Cats(ym.toString())) }, budgets.associateBy { it.cat })
             }
         }
+        if (current && budgets.any { it.warn }) item { PaceCard(budgets, nav, Modifier.rise(3)) }
         if (current) item {
             val dayTxns = st.onDay(sel)
             SectionTitle(dayLabel(sel), Modifier.rise(3)) {
@@ -117,6 +121,8 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                 }
             }
         }
+        if (!current) item(key = "past-$ym") { BiggestPayments(ym, s, nav, 3) }
+    }
     }
 }
 
@@ -244,15 +250,15 @@ private fun RowScope.DayCell(d: LocalDate, amount: Long, perDay: Long, future: B
 }
 
 @Composable
-private fun Treemap(modifier: Modifier, cats: List<CatTotal>, open: (com.rohan.spend.data.Cat) -> Unit, more: () -> Unit) {
+private fun Treemap(modifier: Modifier, cats: List<CatTotal>, open: (com.rohan.spend.data.Cat) -> Unit, more: () -> Unit, rings: Map<com.rohan.spend.data.Cat, BudgetState> = emptyMap()) {
     if (cats.isEmpty()) return
     val gap = 6.dp
     Row(modifier.fillMaxWidth().height(140.dp), horizontalArrangement = Arrangement.spacedBy(gap)) {
-        Tile(cats[0], Modifier.weight(1f).fillMaxHeight(), 18.dp, big = true) { open(cats[0].cat) }
+        Tile(cats[0], Modifier.weight(1f).fillMaxHeight(), 18.dp, big = true, ring = rings[cats[0].cat]) { open(cats[0].cat) }
         Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(gap)) {
-            cats.getOrNull(1)?.let { c -> Tile(c, Modifier.weight(1.4f).fillMaxWidth(), 18.dp) { open(c.cat) } }
+            cats.getOrNull(1)?.let { c -> Tile(c, Modifier.weight(1.4f).fillMaxWidth(), 18.dp, ring = rings[c.cat]) { open(c.cat) } }
             Row(Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
-                cats.drop(2).take(2).forEach { c -> Tile(c, Modifier.weight(1f).fillMaxHeight(), 14.dp, small = true) { open(c.cat) } }
+                cats.drop(2).take(2).forEach { c -> Tile(c, Modifier.weight(1f).fillMaxHeight(), 14.dp, small = true, ring = rings[c.cat]) { open(c.cat) } }
                 val rest = cats.drop(4).sumOf { it.total }
                 if (rest > 0) SmallTile("More", inrShort(rest).removePrefix("₹"), C.ink, Color.White, Modifier.weight(1f).fillMaxHeight(), more)
             }
@@ -261,16 +267,23 @@ private fun Treemap(modifier: Modifier, cats: List<CatTotal>, open: (com.rohan.s
 }
 
 @Composable
-private fun Tile(c: CatTotal, modifier: Modifier, radius: Dp, big: Boolean = false, small: Boolean = false, onClick: () -> Unit) {
+private fun Tile(c: CatTotal, modifier: Modifier, radius: Dp, big: Boolean = false, small: Boolean = false, ring: BudgetState? = null, onClick: () -> Unit) {
     val style = c.cat.style()
     if (small) return SmallTile(null, inrShort(c.total).removePrefix("₹"), style.fg, Color.White, modifier, onClick) {
-        Icon(style.icon, c.cat.label, tint = Color.White, modifier = Modifier.size(16.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Icon(style.icon, c.cat.label, tint = Color.White, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.weight(1f))
+            if (ring != null) BudgetRing(ring, size = 14.dp)
+        }
     }
     Column(
         modifier.clip(RoundedCornerShape(radius)).background(style.fg).press(onClick).padding(12.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(c.cat.label, style = T.label.copy(color = Color.White.copy(alpha = .85f)), maxLines = 1)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(c.cat.label, style = T.label.copy(color = Color.White.copy(alpha = .85f)), maxLines = 1, modifier = Modifier.weight(1f))
+            if (ring != null) BudgetRing(ring, Modifier.padding(start = 6.dp))
+        }
         Text(inr(c.total), style = (if (big) T.h2 else T.h3.copy(fontWeight = FontWeight.Bold)).copy(color = Color.White, fontFeatureSettings = "tnum"), maxLines = 1)
     }
 }

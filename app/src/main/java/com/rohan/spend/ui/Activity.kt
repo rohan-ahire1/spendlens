@@ -63,12 +63,13 @@ private enum class Filter(val label: String, val test: (Txn) -> Boolean) {
 }
 
 @Composable
-fun ActivityScreen(s: AppState, nav: Nav) {
+fun ActivityScreen(s: AppState, nav: Nav, onRefresh: () -> Unit = {}) {
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
     var dayEpoch by rememberSaveable { mutableStateOf<Long?>(null) }
     val day = dayEpoch?.let(LocalDate::ofEpochDay)
     val list = remember(s.visible, filter, day) { s.visible.filter { filter.test(it) && (day == null || it.date() == day) } }
     val days = remember(s.stats) { s.stats.lastDays(14) }
+    Refreshable(s.refreshing, onRefresh) {
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
@@ -86,6 +87,7 @@ fun ActivityScreen(s: AppState, nav: Nav) {
         }
         dayGroups(list, s, nav)
         if (list.isEmpty()) item { EmptyNote("Nothing here yet.") }
+    }
     }
 }
 

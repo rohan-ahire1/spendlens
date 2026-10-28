@@ -66,6 +66,8 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     var editTarget by rememberSaveable { mutableStateOf(false) }
     var showRules by rememberSaveable { mutableStateOf(false) }
     var confirmReset by rememberSaveable { mutableStateOf(false) }
+    var addBudget by rememberSaveable { mutableStateOf(false) }
+    if (addBudget) AddBudgetDialog(s, vm::setBudget) { addBudget = false }
     val export = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         uri?.let(vm::exportCsv)
     }
@@ -103,6 +105,9 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             }
         }
 
+        item { SectionTitle("Budgets", Modifier.rise(4)) }
+        item { BudgetList(s, nav, { addBudget = true }, Modifier.rise(4)) }
+
         item { SectionTitle("Your data", Modifier.rise(4)) }
         item {
             FrostCard(Modifier.rise(5), pad = 6.dp) {
@@ -117,7 +122,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                     Setting("Export to CSV", "${s.visible.size} transactions", onClick = { export.launch("spend-${LocalDate.now()}.csv") }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
-                    Setting("Reset my edits", "Categories, notes, hidden items and settings", onClick = { confirmReset = true }) {}
+                    Setting("Reset my edits", "Categories, notes, budgets, hidden items and settings", onClick = { confirmReset = true }) {}
                 }
             }
         }
@@ -150,7 +155,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset your edits?") },
-            text = { Text("Your categories, notes, hidden items and settings go back to default. Your messages aren't touched.") },
+            text = { Text("Your categories, notes, budgets, hidden items and settings go back to default. Your messages aren't touched.") },
             confirmButton = { TextButton({ vm.resetEdits(); confirmReset = false }) { Text("Reset", color = C.red) } },
             dismissButton = { TextButton({ confirmReset = false }) { Text("Cancel", color = C.muted) } },
             containerColor = Color.White,

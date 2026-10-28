@@ -48,6 +48,11 @@ class Prefs(context: Context) {
 
     private fun writeMap(key: String, m: Map<String, String>) =
         p.edit().putString(key, m.entries.joinToString("\n") { "${it.key.replace('\t', ' ')}\t${it.value.replace('\n', ' ')}" }).apply()
+
+    /** Monthly budget per category, in paise. A category without one isn't in the map. */
+    var budgets: Map<Cat, Long>
+        get() = readMap("budgets").mapNotNull { (k, v) -> runCatching { Cat.valueOf(k) to v.toLong() }.getOrNull() }.toMap()
+        set(v) = writeMap("budgets", v.mapKeys { it.key.name }.mapValues { it.value.toString() })
 }
 
 object SmsSource {
