@@ -141,26 +141,16 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
                         Pill("Possible double charge", C.warnInk, C.warnBg)
                         Spacer(Modifier.height(8.dp))
                         Text("You pay ${dupes.first().payee} more than once a month. Cancelling the extra one saves " +
-                            "${inr(dupes.sumOf { it.amount } * 12)} a year.", style = T.small.copy(color = C.ink))
+                            "${inr(dupes.sumOf { it.monthly } * 12)} a year.", style = T.small.copy(color = C.ink))
                     }
                 }
             }
-            item { SectionTitle("Running") }
-            item {
-                FrostCard(pad = 14.dp) {
-                    Column {
-                        st.subs.forEach { sub ->
-                            Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(sub.payee, style = T.body)
-                                    Text("Next around ${sub.next.format(DateTimeFormatter.ofPattern("d MMM"))} · ${sub.months} months", style = T.tiny)
-                                }
-                                Text(inr(sub.amount), style = T.num)
-                            }
-                        }
-                    }
-                }
-            }
+            item { SectionTitle("Subscriptions") }
+            item { SubsTotal(st.subs) }
+            item { SubsList(st.subs, Modifier.padding(top = 8.dp)) {
+                // Older charges are usually outside this month, so widen to the year.
+                payee = if (payee == it.payee) null else it.payee.also { span = Span.YEAR }
+            } }
         }
 
         item {

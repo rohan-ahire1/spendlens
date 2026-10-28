@@ -122,22 +122,8 @@ fun InsightsScreen(s: AppState, nav: Nav) {
         }
         if (st.subs.isNotEmpty()) {
             item { SectionTitle("Subscriptions", Modifier.rise(12)) }
-            item {
-                Row(
-                    Modifier.rise(13).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(C.heat[0])
-                        .press({ nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) }).padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(inr(st.subsMonthly), style = T.big.copy(color = C.heat[3]))
-                        Text("a month on ${st.subs.size} subscriptions", style = T.small)
-                    }
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text(inrShort(st.subsMonthly * 12), style = T.h3.copy(color = C.heat[3]))
-                        Text("a year", style = T.tiny)
-                    }
-                }
-            }
+            item { SubsTotal(st.subs, Modifier.rise(13)) { nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) } }
+            item { SubsList(st.subs, Modifier.rise(14).padding(top = 8.dp)) { nav.push(Route.Category(com.rohan.spend.data.Cat.SUBSCRIPTIONS)) } }
         }
     }
 }
