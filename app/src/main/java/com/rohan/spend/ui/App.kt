@@ -61,7 +61,7 @@ fun SpendApp(vm: AppViewModel, onAskPermission: () -> Unit) {
 
 @Composable
 private fun Root(vm: AppViewModel, s: AppState, onAskPermission: () -> Unit) {
-    FrostBackground(animate = s.stage != Stage.READY) {
+    FrostBackground(animate = s.stage != Stage.READY, blobs = s.stage != Stage.READY) {
         AnimatedContent(
             targetState = s.stage,
             transitionSpec = { (fadeIn(tween(500)) + scaleIn(initialScale = .96f)) togetherWith fadeOut(tween(300)) },
