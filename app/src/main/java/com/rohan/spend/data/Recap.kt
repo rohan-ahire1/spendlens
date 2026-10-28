@@ -23,6 +23,8 @@ data class Recap(
     val days: Int,
     val biggest: Txn?,
     val place: PlaceTotal?,
+    /** Spend on each day of the month, the 1st first, up to [days]. */
+    val daily: List<Long>,
 ) {
     val vsUsual: Int? get() = if (usual > 0) ((spent - usual) * 100 / usual).toInt() else null
 }
@@ -58,8 +60,8 @@ fun recap(
     }
 
     val last = if (ym == YearMonth.from(today)) today.dayOfMonth else ym.lengthOfMonth()
-    val spendDays = l.map { it.date() }.toSet()
-    val noSpend = (1..last).count { ym.atDay(it) !in spendDays }
+    val perDay = l.groupBy { it.date().dayOfMonth }.mapValues { e -> e.value.sumOf { it.amount } }
+    val daily = (1..last).map { perDay[it] ?: 0L }
 
     val place = l.filter { catOf(it) != Cat.PEOPLE && catOf(it) != Cat.FAMILY }.groupBy { it.payeeKey }
         .map { (_, x) -> PlaceTotal(x.maxBy { it.time }.payee, catOf(x.first()), x.sumOf { it.amount }, x.size) }
@@ -67,7 +69,7 @@ fun recap(
 
     return Recap(
         month = ym, spent = spent, usual = if (usual > 0) usual else median, count = l.size,
-        top = cats.firstOrNull(), shift = shift, noSpend = noSpend, days = last,
-        biggest = l.maxByOrNull { it.amount }, place = place,
+        top = cats.firstOrNull(), shift = shift, noSpend = daily.count { it == 0L }, days = last,
+        biggest = l.maxByOrNull { it.amount }, place = place, daily = daily,
     )
 }

@@ -47,6 +47,8 @@ class RecapTest {
         assertEquals(30, r.days)
         // Spent on the 1st, 5th, 6th, 7th and 15th.
         assertEquals(25, r.noSpend)
+        assertEquals(30, r.daily.size)
+        assertEquals(2_400_00L, r.daily[6])
     }
 
     @Test fun biggestShiftIsInRupees() {
