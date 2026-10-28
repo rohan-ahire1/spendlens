@@ -155,11 +155,19 @@ fun Modifier.rise(index: Int = 0): Modifier = composed {
     }
 }
 
+private var rolledOnce = false
+
 /** A rupee figure that counts up to its value. */
 @Composable
 fun CountUp(paise: Long, style: TextStyle, modifier: Modifier = Modifier, signed: Boolean = false) {
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(paise) { anim.animateTo(paise.toFloat(), tween(900, easing = FastOutSlowInEasing)) }
+    // Numbers roll up once, on the first screen after the app opens. After that they just show.
+    val roll = remember { !rolledOnce }
+    val anim = remember { Animatable(if (roll) 0f else paise.toFloat()) }
+    LaunchedEffect(paise) {
+        if (roll && anim.targetValue == 0f) anim.animateTo(paise.toFloat(), tween(900, easing = FastOutSlowInEasing))
+        else anim.snapTo(paise.toFloat())
+        if (paise != 0L) rolledOnce = true
+    }
     Text(inr(anim.value.roundToLong(), signed), style = style, modifier = modifier, maxLines = 1)
 }
 
