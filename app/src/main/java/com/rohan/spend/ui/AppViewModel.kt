@@ -221,7 +221,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val one = s.txnCats.toMutableMap()
         if (always) {
             rules[t.payeeKey] = cat
-            one.remove(t.id)
+            // "All of them" means all: one-off picks for this payee give way to the rule.
+            s.txns.forEach { if (it.payeeKey == t.payeeKey) one.remove(it.id) }
         } else {
             one[t.id] = cat
         }
