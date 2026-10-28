@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,9 +42,9 @@ fun CatsScreen(ym: YearMonth, s: AppState, nav: Nav) {
             }
         }
         if (cats.isEmpty()) item { FrostCard { EmptyNote("Nothing spent this month.") } }
-        items(cats, key = { it.cat.name }) { c ->
+        itemsIndexed(cats, key = { _, c -> c.cat.name }) { i, c ->
             val style = c.cat.style()
-            Box(Modifier.padding(bottom = 8.dp).frost(22.dp).press({ nav.push(Route.Category(c.cat)) }).padding(14.dp)) {
+            Box(Modifier.rise(i + 1).padding(bottom = 8.dp).frost(22.dp).press({ nav.push(Route.Category(c.cat)) }).padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CatIcon(c.cat, 40.dp)
                     Spacer(Modifier.width(12.dp))
@@ -54,9 +54,7 @@ fun CatsScreen(ym: YearMonth, s: AppState, nav: Nav) {
                             Text(inr(c.total), style = T.num.copy(fontWeight = FontWeight.Bold))
                         }
                         Spacer(Modifier.height(6.dp))
-                        Box(Modifier.fillMaxWidth().height(6.dp).clip(CircleShape).background(C.noSpend)) {
-                            Box(Modifier.fillMaxWidth(c.total.toFloat() / top).height(6.dp).clip(CircleShape).background(style.fg))
-                        }
+                        GrowBar(c.total.toFloat() / top, style.fg, delayMs = 120L + 40L * i.coerceAtMost(10))
                         Spacer(Modifier.height(6.dp))
                         val pct = c.total * 100 / total
                         Text(
