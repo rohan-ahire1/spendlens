@@ -71,9 +71,10 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val st = s.stats
     val today = s.today
     val sel = today
-    var back by rememberSaveable { mutableStateOf(0L) }
-    val ym = st.thisMonth.minusMonths(back)
-    val current = back == 0L
+    // The month paged back to, by name so midnight on the 1st doesn't shift it; null follows the current month.
+    var viewed by rememberSaveable { mutableStateOf<String?>(null) }
+    val ym = viewed?.let(YearMonth::parse)?.takeIf { it < st.thisMonth } ?: st.thisMonth
+    val current = ym == st.thisMonth
     val daily = remember(st, ym) { st.dailyIn(ym) }
     val cats = remember(st, ym) { st.byCatIn(ym) }
     val spent = daily.values.sum()
@@ -113,8 +114,8 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         item {
             Calendar(
                 Modifier.rise(1).padding(top = 18.dp), ym, today, daily, usual / ym.lengthOfMonth(), sel,
-                prev = if (ym > st.firstMonth) ({ back += 1 }) else null,
-                next = if (!current) ({ back -= 1 }) else null,
+                prev = if (ym > st.firstMonth) ({ viewed = ym.minusMonths(1).toString() }) else null,
+                next = if (!current) ({ viewed = ym.plusMonths(1).takeIf { it < st.thisMonth }?.toString() }) else null,
             ) { nav.push(Route.Day(it.toEpochDay())) }
         }
         item {
