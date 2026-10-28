@@ -118,6 +118,23 @@ class SubsTest {
         assertEquals(1, subs.count { it.duplicate })
     }
 
+    @Test fun similarPlansOnDifferentDaysAreNotADoubleCharge() {
+        // YouTube Premium and Google One, both billed as Google Play.
+        val subs = detectSubs(listOf(
+            txn("2026-08-02", 129, "Google Play"), txn("2026-08-16", 130, "Google Play"),
+            txn("2026-09-02", 129, "Google Play"), txn("2026-09-16", 130, "Google Play"),
+            txn("2026-10-02", 129, "Google Play"), txn("2026-10-16", 130, "Google Play"),
+        ), today)
+        assertEquals(2, subs.size)
+        assertTrue(subs.none { it.duplicate })
+    }
+
+    @Test fun storesAreToldApart() {
+        assertTrue(isStore("Google Play"))
+        assertTrue(isStore("APPLE MEDIA SERVICES"))
+        assertFalse(isStore("Spotify"))
+    }
+
     @Test fun upcomingRenewalsFiltersToSubscriptions() {
         val txns = listOf(
             txn("2026-08-22", 649), txn("2026-09-22", 649),

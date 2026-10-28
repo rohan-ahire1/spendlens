@@ -37,6 +37,7 @@ import com.rohan.spend.data.Cat
 import com.rohan.spend.data.date
 import com.rohan.spend.data.inr
 import com.rohan.spend.data.inrShort
+import com.rohan.spend.data.isStore
 import com.rohan.spend.data.month
 import java.time.LocalDate
 import java.time.YearMonth
@@ -144,10 +145,14 @@ fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav, onBudget:
             if (dupes.isNotEmpty()) item {
                 FrostCard(Modifier.padding(top = 12.dp)) {
                     Column {
-                        Pill("Possible double charge", C.warnInk, C.warnBg)
+                        val d = dupes.first()
+                        Pill(if (isStore(d.payee)) "Two plans" else "Possible double charge", C.warnInk, C.warnBg)
                         Spacer(Modifier.height(8.dp))
-                        Text("You pay ${dupes.first().payee} more than once a month. Cancelling the extra one saves " +
-                            "${inr(dupes.sumOf { it.monthly } * 12)} a year.", style = T.small.copy(color = C.ink))
+                        Text(
+                            if (isStore(d.payee)) "Two plans at ${d.payee} at about the same price. Check you need both."
+                            else "You pay ${d.payee} more than once a month. Cancelling the extra one saves ${inr(dupes.sumOf { it.monthly } * 12)} a year.",
+                            style = T.small.copy(color = C.ink),
+                        )
                     }
                 }
             }

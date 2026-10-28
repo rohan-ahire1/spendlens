@@ -34,7 +34,7 @@ data class Subscription(
     val rise: PriceRise?,
     /** The expected charge is more than [MISSED_DAYS] late. */
     val cancelled: Boolean,
-    /** Another live charge from the same payee at about the same price. */
+    /** Another live charge from the same payee at about the same price, on about the same days. */
     val duplicate: Boolean,
 ) {
     val amount: Long get() = charges.last().amount
@@ -65,12 +65,28 @@ fun detectSubs(txns: List<Txn>, today: LocalDate): List<Subscription> {
     return found.map { s ->
         val twin = found.any { o ->
             o !== s && o.payeeKey == s.payeeKey && !o.cancelled && !s.cancelled &&
-                abs(o.amount - s.amount) * 10 <= max(o.amount, s.amount) &&
+                abs(o.amount - s.amount) * 10 <= max(o.amount, s.amount) && sameDays(s, o) &&
                 (o.amount > s.amount || (o.amount == s.amount && o.last > s.last))
         }
         s.copy(duplicate = twin)
     }.sortedWith(compareBy<Subscription> { it.cancelled }.thenByDescending { it.monthly })
 }
+
+/**
+ * Whether every charge of [a] while [b] was running lands within [DUPE_DAYS] of one of [b]'s.
+ * Two plans at one store at a similar price usually renew on different days.
+ */
+private fun sameDays(a: Subscription, b: Subscription): Boolean {
+    val overlap = a.charges.filter { c -> !c.date.isBefore(b.charges.first().date.minusDays(DUPE_DAYS)) && !c.date.isAfter(b.last.plusDays(DUPE_DAYS)) }
+    return overlap.isNotEmpty() && overlap.all { c -> b.charges.any { abs(ChronoUnit.DAYS.between(c.date, it.date)) <= DUPE_DAYS } }
+}
+
+private const val DUPE_DAYS = 3L
+
+private val storeRe = Regex("""google ?play|apple|app ?store|itunes|play ?store""", RegexOption.IGNORE_CASE)
+
+/** App stores bill many different plans under one name, so two charges there are often two things. */
+fun isStore(payee: String) = storeRe.containsMatchIn(payee)
 
 /** Live subscriptions due between today and [within] days from now, soonest first. */
 fun renewals(subs: List<Subscription>, today: LocalDate, within: Int = 3): List<Renewal> =
