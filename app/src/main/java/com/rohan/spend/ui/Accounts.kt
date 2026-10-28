@@ -5,6 +5,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -66,6 +69,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel) {
         item {
             val accounts = s.stats.accounts
             if (accounts.isEmpty()) EmptyNote("No accounts found in your messages yet.")
+            else MonthSplit(accounts)
             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
                 items(accounts) { a -> AccountCard(a) }
             }
@@ -172,16 +176,55 @@ private fun RuleRow(key: String, cat: Cat, onRemove: () -> Unit) {
     }
 }
 
+/** Which account this month's money left from, as one split bar of the heat colors. */
+@Composable
+private fun MonthSplit(accounts: List<Stats.Account>) {
+    val spending = accounts.filter { it.monthSpend > 0 }.sortedByDescending { it.monthSpend }
+    if (spending.isEmpty()) return
+    val total = spending.sumOf { it.monthSpend }
+    val shades = listOf(C.heat[3], C.heat[2], C.heat[1], C.heat[0])
+    FrostCard(Modifier.padding(top = 4.dp, bottom = 6.dp), radius = 28.dp, pad = 20.dp) {
+        Column {
+            Text("Left your accounts this month", style = T.label)
+            CountUp(total, T.display)
+            Spacer(Modifier.height(14.dp))
+            Row(Modifier.fillMaxWidth().height(28.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                spending.forEachIndexed { i, a ->
+                    Box(Modifier.weight(a.monthSpend.toFloat() / total).fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(shades[minOf(i, 3)]))
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            spending.forEachIndexed { i, a ->
+                Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(10.dp).clip(RoundedCornerShape(3.dp)).background(shades[minOf(i, 3)]))
+                    Spacer(Modifier.width(8.dp))
+                    Text("${bankName(a.sender)} ··${a.id}", style = T.small.copy(color = C.ink), modifier = Modifier.weight(1f))
+                    Text("${(a.monthSpend * 100 / total)}%", style = T.tiny, modifier = Modifier.padding(end = 10.dp))
+                    Text(inr(a.monthSpend), style = T.num.copy(fontSize = T.small.fontSize))
+                }
+            }
+        }
+    }
+}
+
 @Composable
 private fun AccountCard(a: Stats.Account) {
-    val brush = if (a.isCard) Brush.linearGradient(listOf(C.ink, Color(0xFF3A3550)))
-    else Brush.linearGradient(listOf(C.tint, C.peach))
-    Column(
-        Modifier.width(220.dp).height(132.dp).clip(RoundedCornerShape(22.dp)).background(brush).padding(18.dp),
-    ) {
+    Box(Modifier.width(220.dp).height(132.dp).clip(RoundedCornerShape(22.dp)).background(if (a.isCard) C.ink else C.heat[3])) {
+        // The last digits, set huge and faint, as the card's texture.
+        Text(
+            a.id.takeLast(4), style = T.display.copy(fontSize = 84.sp, color = Color.White.copy(alpha = .07f), letterSpacing = (-4).sp),
+            modifier = Modifier.align(Alignment.BottomEnd).offset(x = 8.dp, y = 22.dp), maxLines = 1, softWrap = false,
+        )
+        AccountFace(a)
+    }
+}
+
+@Composable
+private fun AccountFace(a: Stats.Account) {
+    Column(Modifier.fillMaxSize().padding(18.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(bankName(a.sender), style = T.label.copy(color = Color.White.copy(alpha = .85f)), modifier = Modifier.weight(1f))
-            Box(Modifier.size(8.dp).clip(RoundedCornerShape(4.dp)).background(Color.White.copy(alpha = .7f)))
+            Text(if (a.isCard) "CARD" else "BANK", style = T.tiny.copy(color = Color.White.copy(alpha = .5f), fontSize = 10.sp, letterSpacing = 1.sp))
         }
         Spacer(Modifier.weight(1f))
         Text(if (a.isCard) "Card ··${a.id}" else "Account ··${a.id}", style = T.tiny.copy(color = Color.White.copy(alpha = .8f)))
