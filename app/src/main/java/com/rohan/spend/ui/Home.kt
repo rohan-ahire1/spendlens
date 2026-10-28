@@ -102,7 +102,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         }
         item {
             Crossfade(ym, Modifier.rise(2), tween(320), label = "treemap") { _ ->
-                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it)) }, { nav.push(Route.Cats(ym.toString())) })
+                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it, if (current) null else ym.toString())) }, { nav.push(Route.Cats(ym.toString())) })
             }
         }
         if (current) item {

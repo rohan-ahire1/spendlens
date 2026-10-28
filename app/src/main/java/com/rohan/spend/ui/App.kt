@@ -33,7 +33,8 @@ import com.rohan.spend.data.Cat
 sealed interface Route {
     data class Tabbed(val tab: Tab) : Route
     data class TxnDetail(val id: Long) : Route
-    data class Category(val cat: Cat) : Route
+    /** [month] is the month the user was looking at when they opened it, or null for "now". */
+    data class Category(val cat: Cat, val month: String? = null) : Route
     data class Day(val epochDay: Long) : Route
     data class Cats(val month: String) : Route
     data object Search : Route
@@ -78,7 +79,7 @@ class Nav(start: List<Entry>, private var next: Int) {
         private fun encode(r: Route): String = when (r) {
             is Route.Tabbed -> "tab:${r.tab.name}"
             is Route.TxnDetail -> "txn:${r.id}"
-            is Route.Category -> "cat:${r.cat.name}"
+            is Route.Category -> "cat:${r.cat.name}:${r.month ?: ""}"
             is Route.Day -> "day:${r.epochDay}"
             is Route.Cats -> "cats:${r.month}"
             Route.Search -> "search"
@@ -89,7 +90,7 @@ class Nav(start: List<Entry>, private var next: Int) {
             when (p[0]) {
                 "tab" -> Route.Tabbed(Tab.valueOf(p[1]))
                 "txn" -> Route.TxnDetail(p[1].toLong())
-                "cat" -> Route.Category(Cat.valueOf(p[1]))
+                "cat" -> Route.Category(Cat.valueOf(p[1]), p.getOrNull(2)?.ifEmpty { null })
                 "day" -> Route.Day(p[1].toLong())
                 "cats" -> Route.Cats(p[1])
                 "search" -> Route.Search
@@ -165,7 +166,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                     }
                     is Route.TxnDetail -> s.txns.firstOrNull { it.id == r.id }
                         ?.let { TxnScreen(it, s, vm, nav) } ?: LaunchedEffect(r) { nav.pop() }
-                    is Route.Category -> CategoryScreen(r.cat, s, nav)
+                    is Route.Category -> CategoryScreen(r.cat, r.month?.let(java.time.YearMonth::parse), s, nav)
                     is Route.Day -> DayScreen(java.time.LocalDate.ofEpochDay(r.epochDay), s, nav)
                     Route.Search -> SearchScreen(s, nav)
                     is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)

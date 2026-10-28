@@ -44,7 +44,7 @@ fun CatsScreen(ym: YearMonth, s: AppState, nav: Nav) {
         if (cats.isEmpty()) item { FrostCard { EmptyNote("Nothing spent this month.") } }
         itemsIndexed(cats, key = { _, c -> c.cat.name }) { i, c ->
             val style = c.cat.style()
-            Box(Modifier.rise(i + 1).padding(bottom = 8.dp).frost(22.dp).press({ nav.push(Route.Category(c.cat)) }).padding(14.dp)) {
+            Box(Modifier.rise(i + 1).padding(bottom = 8.dp).frost(22.dp).press({ nav.push(Route.Category(c.cat, ym.toString())) }).padding(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CatIcon(c.cat, 40.dp)
                     Spacer(Modifier.width(12.dp))

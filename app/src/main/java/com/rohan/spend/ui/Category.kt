@@ -58,14 +58,19 @@ private val monFmt = DateTimeFormatter.ofPattern("MMM")
 
 /** Every payment in a category, filterable by time span and by who was paid. */
 @Composable
-fun CategoryScreen(cat: Cat, s: AppState, nav: Nav) {
+fun CategoryScreen(cat: Cat, month: YearMonth?, s: AppState, nav: Nav) {
     val st = s.stats
     val style = cat.style()
     val today = LocalDate.now()
+    // Opened from a past month on Home: the month chip means that month, not this one.
+    val past = month?.takeIf { it < st.thisMonth }
+    val monthLabel = past?.format(if (past.year == today.year) DateTimeFormatter.ofPattern("MMMM") else DateTimeFormatter.ofPattern("MMM yyyy"))
     var span by rememberSaveable { mutableStateOf(Span.MONTH) }
     var payee by rememberSaveable { mutableStateOf<String?>(null) }
     var biggest by rememberSaveable { mutableStateOf(false) }
-    val inSpan = remember(st, cat, span) { st.inCat(cat).filter { !it.date().isBefore(span.from(today)) } }
+    val inSpan = remember(st, cat, span, past) {
+        st.inCat(cat).filter { if (span == Span.MONTH && past != null) it.month() == past else !it.date().isBefore(span.from(today)) }
+    }
     val payees = remember(inSpan) {
         inSpan.groupBy { it.payee }.map { (p, l) -> p to l.sumOf { it.amount } }.sortedByDescending { it.second }
     }
@@ -85,11 +90,11 @@ fun CategoryScreen(cat: Cat, s: AppState, nav: Nav) {
             Column(Modifier.rise(0).padding(top = 6.dp).fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(style.bg).padding(18.dp)) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
-                        Text("${span.title} · ${list.size} ${if (list.size == 1) "payment" else "payments"}", style = T.label.copy(color = style.fg))
+                        Text("${if (span == Span.MONTH) monthLabel ?: span.title else span.title} · ${list.size} ${if (list.size == 1) "payment" else "payments"}", style = T.label.copy(color = style.fg))
                         CountUp(total, T.display.copy(fontSize = 46.sp))
                     }
                     if (span == Span.MONTH && payee == null && usual > 0) {
-                        val pace = usual * today.dayOfMonth / today.lengthOfMonth()
+                        val pace = if (past != null) usual else usual * today.dayOfMonth / today.lengthOfMonth()
                         val pct = if (pace > 0) ((total - pace) * 100 / pace).toInt() else 0
                         Text(
                             (if (pct >= 0) "+" else "−") + "${kotlin.math.abs(pct)}% vs usual",
@@ -103,7 +108,7 @@ fun CategoryScreen(cat: Cat, s: AppState, nav: Nav) {
                     Span.entries.forEach { sp ->
                         val on = sp == span
                         Text(
-                            sp.label, style = T.label.copy(color = if (on) Color.White else C.ink, fontSize = 13.sp),
+                            (if (sp == Span.MONTH) monthLabel ?: sp.label else sp.label), style = T.label.copy(color = if (on) Color.White else C.ink, fontSize = 13.sp),
                             modifier = Modifier.clip(CircleShape).background(if (on) C.ink else Color.White.copy(alpha = .7f))
                                 .press({ span = sp; payee = null }).padding(horizontal = 12.dp, vertical = 6.dp),
                         )
