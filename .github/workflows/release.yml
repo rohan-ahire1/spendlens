@@ -1,0 +1,46 @@
+name: Build and release
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      # Sign with the same key as local builds so a release installs over an existing app.
+      - name: Restore signing key
+        env:
+          KEYSTORE: ${{ secrets.DEBUG_KEYSTORE }}
+        run: |
+          mkdir -p ~/.android
+          echo "$KEYSTORE" | base64 -d > ~/.android/debug.keystore
+
+      - name: Test and build
+        run: ./gradlew testDebugUnitTest assembleRelease --console=plain
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          apk="spend-lens-0.1.${BUILD_NUMBER}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          gh release create "v0.1.${BUILD_NUMBER}" "$apk" \
+            --title "Spend Lens 0.1.${BUILD_NUMBER}" \
+            --notes "$(git log -1 --format=%s)" \
+            --latest
