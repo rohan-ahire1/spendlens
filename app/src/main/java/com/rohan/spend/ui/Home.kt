@@ -115,7 +115,7 @@ private fun Headline(modifier: Modifier, today: LocalDate, spent: Long, usual: L
 }
 
 /** Heat bucket for a day's spend against an ordinary day's share of the usual month. */
-private fun level(amount: Long, perDay: Long): Int = when {
+fun level(amount: Long, perDay: Long): Int = when {
     perDay <= 0 -> if (amount > 0) 1 else 0
     amount < perDay / 2 -> 0
     amount < perDay -> 1
@@ -124,7 +124,7 @@ private fun level(amount: Long, perDay: Long): Int = when {
 }
 
 /** 1.7k, 25k, 30: tight enough for a calendar cell. */
-private fun short(paise: Long): String {
+fun short(paise: Long): String {
     val r = paise / 100
     return when {
         r >= 10_000 -> "${r / 1000}k"
