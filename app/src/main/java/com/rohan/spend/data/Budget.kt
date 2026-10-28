@@ -51,11 +51,11 @@ fun budgetState(cat: Cat, budget: Long, spent: Long, ym: YearMonth, today: Local
  * Each budget's state in [ym], worst first. Spend matches the Home tiles where the category is
  * counted, and falls back to every payment in it otherwise (say, Family while it's left out).
  */
-fun Stats.budgets(budgets: Map<Cat, Long>, ym: YearMonth, today: LocalDate = LocalDate.now()): List<BudgetState> {
+fun Stats.budgets(budgets: Map<Cat, Long>, ym: YearMonth, today: LocalDate = this.today): List<BudgetState> {
     if (budgets.isEmpty()) return emptyList()
     val counted = byCatIn(ym).associate { it.cat to it.total }
     return budgets.filterValues { it > 0 }.map { (cat, b) ->
-        val spent = counted[cat] ?: inCat(cat).filter { it.month() == ym }.sumOf { it.amount }
+        val spent = counted[cat] ?: inCat(cat).filter { it.month() == ym }.sumOf { spend(it) }
         budgetState(cat, b, spent, ym, today)
     }.sortedWith(compareByDescending<BudgetState> { it.pace.ordinal }.thenByDescending { it.fraction })
 }

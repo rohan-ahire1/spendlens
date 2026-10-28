@@ -153,7 +153,7 @@ fun androidx.compose.foundation.lazy.LazyListScope.dayGroups(list: List<Txn>, s:
                         Text(if (day == today) "Today" else if (day == today.minusDays(1)) "Yesterday" else day.format(dow), style = T.h3)
                         Text(day.format(mon) + if (day.year != today.year) " ${day.year}" else "", style = T.tiny)
                     }
-                    val out = txns.filter { it.debit }.sumOf { it.amount }
+                    val out = txns.filter { it.debit }.sumOf(s.stats::spend)
                     if (out > 0) Text(inr(out), style = T.num.copy(color = C.muted))
                 }
                 FrostCard(pad = 14.dp) {
@@ -201,7 +201,7 @@ fun SearchScreen(s: AppState, nav: Nav) {
         if (q.isNotBlank()) {
             Row(Modifier.padding(vertical = 6.dp)) {
                 Text("${shown.size} found", style = T.label, modifier = Modifier.weight(1f))
-                Text(inr(shown.filter { it.debit }.sumOf { it.amount }) + " spent", style = T.label)
+                Text(inr(shown.filter { it.debit }.sumOf(s.stats::spend)) + " spent", style = T.label)
             }
         }
         LazyColumn(contentPadding = PaddingValues(bottom = 40.dp)) {

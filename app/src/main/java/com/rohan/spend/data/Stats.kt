@@ -41,7 +41,7 @@ class Stats(
     private val txns: List<Txn>,
     private val catOf: (Txn) -> Cat,
     private val counting: Counting,
-    private val today: LocalDate = LocalDate.now(),
+    val today: LocalDate = LocalDate.now(),
     private val net: (Txn) -> Long = { it.amount },
 ) {
     /** What a payment counts for in every spending total: the user's share, less refunds. */

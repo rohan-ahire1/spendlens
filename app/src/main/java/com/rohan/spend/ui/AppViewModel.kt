@@ -71,6 +71,8 @@ data class AppState(
     }
     val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
     val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today, ::net) }
+    /** Visible payments with each debit cut to what you actually paid, after refunds and splits. */
+    val netted: List<Txn> by lazy { visible.map { t -> if (t.debit) stats.spend(t).let { if (it != t.amount) t.copy(amount = it) else t } else t } }
     fun usual(): Long = if (target > 0) target else stats.usualMonth
 
     val byId: Map<Long, Txn> by lazy { txns.associateBy { it.id } }
@@ -257,10 +259,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 withContext(Dispatchers.IO) {
                     val out = getApplication<Application>().contentResolver.openOutputStream(uri) ?: error("No file to write to")
                     out.bufferedWriter().use { w ->
-                        w.write("date,payee,amount,direction,category,channel,account,note\n")
+                        w.write("date,payee,amount,my_share,direction,category,channel,account,note\n")
                         for (t in s.visible) {
                             val cells = listOf(
                                 t.date().toString(), t.payee, "%.2f".format(t.amount / 100.0),
+                                "%.2f".format((if (t.debit) s.stats.spend(t) else t.amount) / 100.0),
                                 if (t.debit) "out" else "in", s.catOf(t).label, t.channel.label,
                                 t.account ?: "", s.notes[t.id] ?: "",
                             )

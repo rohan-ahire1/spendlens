@@ -121,7 +121,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
                     Setting("Hidden payments", if (hiddenCount == 0) "None" else "$hiddenCount left out of totals", onClick = { nav.push(Route.Hidden) }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
-                    Setting("Export to CSV", "${s.visible.size} transactions", onClick = { export.launch("spend-${LocalDate.now()}.csv") }) {
+                    Setting("Export to CSV", "${s.visible.size} transactions", onClick = { export.launch("spend-${s.today}.csv") }) {
                         Icon(Icons.AutoMirrored.Rounded.KeyboardArrowRight, null, tint = C.faint)
                     }
                     Setting("Reset my edits", "Categories, notes, budgets, splits, hidden items and settings", onClick = { confirmReset = true }) {}

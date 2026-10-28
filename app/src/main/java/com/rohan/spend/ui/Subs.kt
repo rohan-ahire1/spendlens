@@ -65,7 +65,7 @@ fun SubsTotal(subs: List<Subscription>, modifier: Modifier = Modifier, onClick: 
 /** Each subscription with when it next charges, how often, and what it costs a month. */
 @Composable
 fun SubsList(subs: List<Subscription>, modifier: Modifier = Modifier, onOpen: ((Subscription) -> Unit)? = null) {
-    val today = LocalDate.now()
+    val today = LocalToday.current
     FrostCard(modifier, pad = 14.dp) {
         Column {
             subs.forEach { sub -> SubRow(sub, today, onOpen?.let { { it(sub) } }) }

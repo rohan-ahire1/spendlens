@@ -51,7 +51,7 @@ class AskState(val reply: Reply?, private val picked: MutableState<Boolean>) {
 
 @Composable
 fun rememberAsk(q: String, s: AppState): AskState {
-    val reply = remember(q, s.stats) { Ask.reply(q, LocalDate.now(), s.visible, s::catOf, s.stats::counts) }
+    val reply = remember(q, s.stats) { Ask.reply(q, s.today, s.netted, s::catOf, s.stats::counts) }
     val picked = rememberSaveable(q) { mutableStateOf(false) }
     return remember(reply, picked) { AskState(reply, picked) }
 }

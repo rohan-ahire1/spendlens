@@ -333,7 +333,7 @@ fun MonthBars(data: List<Pair<YearMonth, Long>>, usual: Long, color: Color) {
     LaunchedEffect(Unit) { grow.animateTo(1f, tween(900, easing = FastOutSlowInEasing)) }
     val max = (data.maxOfOrNull { it.second } ?: 0L).coerceAtLeast(usual).coerceAtLeast(1L)
     Column {
-        val (m, v) = data.getOrNull(sel) ?: (YearMonth.now() to 0L)
+        val (m, v) = data.getOrNull(sel) ?: (YearMonth.from(LocalToday.current) to 0L)
         Text(m.format(monthLong), style = T.label)
         Row(verticalAlignment = Alignment.Bottom) {
             Text(inr(v), style = T.h2)

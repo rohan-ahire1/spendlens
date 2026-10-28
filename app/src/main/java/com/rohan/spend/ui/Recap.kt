@@ -68,7 +68,7 @@ fun YearMonth.monthName(): String = month.getDisplayName(JTextStyle.FULL, Locale
 @Composable
 fun RecapScreen(ym: YearMonth, s: AppState, nav: Nav) {
     val st = s.stats
-    val r = remember(st, ym, s.target) { recap(s.visible, st::counts, s::catOf, ym, usual = s.target) }
+    val r = remember(st, ym, s.target) { recap(s.netted, st::counts, s::catOf, ym, s.today, usual = s.target) }
     val layer = rememberGraphicsLayer()
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current

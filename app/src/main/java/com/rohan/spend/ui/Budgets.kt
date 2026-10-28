@@ -54,7 +54,7 @@ import java.util.Locale
 fun AppState.budgetsIn(ym: YearMonth): List<BudgetState> = remember(stats, budgets, ym) { stats.budgets(budgets, ym) }
 
 /** Money in and card bill payments (moving money, not spending it) don't get budgets. */
-val Cat.budgetable: Boolean get() = bucket != Bucket.INCOME && bucket != Bucket.MOVE
+val Cat.budgetable: Boolean get() = bucket != Bucket.INCOME && bucket != Bucket.MOVE && bucket != Bucket.OWN
 
 private fun monthName(ym: YearMonth): String =
     ym.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + if (ym.year != LocalDate.now().year) " ${ym.year}" else ""
@@ -95,7 +95,7 @@ fun BudgetCard(cat: Cat, ym: YearMonth, s: AppState, modifier: Modifier = Modifi
             }
             return@FrostCard
         }
-        val b = s.budgetsIn(ym).firstOrNull { it.cat == cat } ?: budgetState(cat, budget, 0, ym, LocalDate.now())
+        val b = s.budgetsIn(ym).firstOrNull { it.cat == cat } ?: budgetState(cat, budget, 0, ym, LocalToday.current)
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Budget for ${monthName(ym)}", style = T.label, modifier = Modifier.weight(1f))
@@ -108,7 +108,7 @@ fun BudgetCard(cat: Cat, ym: YearMonth, s: AppState, modifier: Modifier = Modifi
             }
             Spacer(Modifier.height(10.dp))
             GrowBar(b.fraction, if (b.warn) C.warnInk else cat.style().fg, height = 8.dp, delayMs = 150)
-            if (ym == YearMonth.now() && b.projected != b.spent) {
+            if (ym == YearMonth.from(LocalToday.current) && b.projected != b.spent) {
                 Spacer(Modifier.height(8.dp))
                 Text("At this rate, about ${inr(b.projected)} by the month's end", style = T.tiny)
             }

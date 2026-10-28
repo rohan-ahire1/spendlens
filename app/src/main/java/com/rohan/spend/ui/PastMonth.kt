@@ -16,9 +16,9 @@ import java.util.Locale
 @Composable
 fun BiggestPayments(ym: YearMonth, s: AppState, nav: Nav, first: Int) {
     val top = remember(s.stats, ym) {
-        s.visible.filter { s.stats.counts(it) && it.month() == ym }.sortedByDescending { it.amount }.take(5)
+        s.visible.filter { s.stats.counts(it) && it.month() == ym }.sortedByDescending(s.stats::spend).take(5)
     }
-    val name = ym.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + if (ym.year != LocalDate.now().year) " ${ym.year}" else ""
+    val name = ym.month.getDisplayName(TextStyle.FULL, Locale.getDefault()) + if (ym.year != s.today.year) " ${ym.year}" else ""
     Column {
         SectionTitle("Biggest payments in $name", Modifier.rise(first)) {
             if (top.isNotEmpty()) Text("See all", style = T.label, modifier = Modifier.press({ nav.push(Route.Cats(ym.toString())) }))
