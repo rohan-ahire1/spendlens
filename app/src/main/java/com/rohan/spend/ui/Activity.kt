@@ -49,6 +49,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
 import com.rohan.spend.data.Channel
+import com.rohan.spend.data.Reply
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
 import com.rohan.spend.data.inr
@@ -198,7 +199,8 @@ fun SearchScreen(s: AppState, nav: Nav) {
             Spacer(Modifier.width(10.dp))
             RoundButton(Icons.Rounded.Close, "Close", nav::pop)
         }
-        if (q.isNotBlank()) {
+        // An answer card carries its own number, so a second count here would only disagree with it.
+        if (q.isNotBlank() && ask.reply !is Reply.Done) {
             Row(Modifier.padding(vertical = 6.dp)) {
                 Text("${shown.size} found", style = T.label, modifier = Modifier.weight(1f))
                 Text(inr(shown.filter { it.debit }.sumOf(s.stats::spend)) + " spent", style = T.label)
