@@ -38,13 +38,16 @@ import com.rohan.spend.data.Txn
 import java.time.LocalDate
 
 /** What the search box makes of a question, and whether the list is narrowed to the answer. */
-class AskState(val reply: Reply?, private val picked: MutableState<Boolean>) {
+class AskState(val reply: Reply?, private val picked: MutableState<Boolean>, private val byId: Map<Long, Txn>) {
     val narrowed: Boolean get() = picked.value && reply is Reply.Done
     fun toggle() { picked.value = !picked.value }
 
-    /** Plain hits when there are some; otherwise what the question is about, or exactly what was counted. */
+    /**
+     * Plain hits when there are some; otherwise what the question is about, or exactly what was counted.
+     * The answer works on netted copies; the list shows the payments themselves, as Activity does.
+     */
     fun list(hits: List<Txn>): List<Txn> = when (val r = reply) {
-        is Reply.Done -> if (picked.value) r.a.txns else hits.ifEmpty { r.a.matches }
+        is Reply.Done -> if (picked.value) r.a.txns.map { byId[it.id] ?: it } else hits.ifEmpty { r.a.matches.map { byId[it.id] ?: it } }
         else -> hits
     }
 }
@@ -53,7 +56,7 @@ class AskState(val reply: Reply?, private val picked: MutableState<Boolean>) {
 fun rememberAsk(q: String, s: AppState): AskState {
     val reply = remember(q, s.stats) { Ask.reply(q, s.today, s.netted, s::catOf, s.stats::counts) }
     val picked = rememberSaveable(q) { mutableStateOf(false) }
-    return remember(reply, picked) { AskState(reply, picked) }
+    return remember(reply, picked, s.byId) { AskState(reply, picked, s.byId) }
 }
 
 /** The answer card, a short note when a question didn't parse, or example questions on an empty box. */
