@@ -61,3 +61,8 @@ private fun trim(d: Double): String {
     val s = String.format(java.util.Locale.US, "%.1f", d)
     return if (s.endsWith(".0")) s.dropLast(2) else s
 }
+
+private val refRe = Regex("""(?:ref(?:erence)?|rrn|utr|txn ?id)[\s.:#]*(?:no\.?[\s:]*)?([A-Za-z0-9]{6,})""", RegexOption.IGNORE_CASE)
+
+/** The bank's reference number from the message, when it has one. */
+val Txn.ref: String? get() = refRe.find(body)?.groupValues?.get(1)
