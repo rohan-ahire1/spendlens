@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Spend"
+rootProject.name = "SpendLens"
 include(":app")

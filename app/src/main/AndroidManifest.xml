@@ -7,7 +7,7 @@
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
-        android:label="Spend"
+        android:label="Spend Lens"
         android:theme="@style/Theme.Spend">
         <activity
             android:name=".MainActivity"

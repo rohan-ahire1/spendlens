@@ -113,7 +113,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             }
         }
         item {
-            Text("Spend has no internet permission. Your messages and edits never leave this phone.",
+            Text("Spend Lens has no internet permission. Your messages and edits never leave this phone.",
                 style = T.tiny, modifier = Modifier.padding(top = 18.dp))
         }
     }
