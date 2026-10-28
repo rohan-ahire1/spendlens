@@ -20,7 +20,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -36,15 +39,64 @@ sealed interface Route {
     data object Search : Route
 }
 
-class Nav(start: Route) {
-    val stack = mutableStateListOf(start)
-    val top: Route get() = stack.last()
+/** One screen on the stack. [key] is unique so two visits to the same route keep separate state. */
+data class Entry(val key: Int, val route: Route)
+
+class Nav(start: List<Entry>, private var next: Int) {
+    val stack = mutableStateListOf<Entry>().apply { addAll(start) }
+    val top: Entry get() = stack.last()
     var forward = true
         private set
+    /** Called with the key of every screen that leaves for good, so its saved state can be dropped. */
+    var onDrop: (Int) -> Unit = {}
 
-    fun push(r: Route) { forward = true; stack.add(r) }
-    fun pop() { if (stack.size > 1) { forward = false; stack.removeAt(stack.lastIndex) } }
-    fun tab(t: Tab) { forward = true; stack.clear(); stack.add(Route.Tabbed(t)) }
+    fun push(r: Route) { forward = true; stack.add(Entry(next++, r)) }
+    fun pop() { if (stack.size > 1) { forward = false; onDrop(stack.removeAt(stack.lastIndex).key) } }
+    fun tab(t: Tab) {
+        forward = true
+        // Each tab keeps a fixed key, so its month, filters and scroll survive switching away and back.
+        stack.drop(1).forEach { onDrop(it.key) }
+        stack.clear()
+        stack.add(Entry(-1 - t.ordinal, Route.Tabbed(t)))
+    }
+
+    companion object {
+        fun start() = Nav(listOf(Entry(-1 - Tab.HOME.ordinal, Route.Tabbed(Tab.HOME))), 0)
+
+        // Rotation or the system killing the app in the background should land you where you were.
+        val Saver: Saver<Nav, Any> = listSaver(
+            save = { n -> listOf(n.next.toString()) + n.stack.map { "${it.key}|${encode(it.route)}" } },
+            restore = { l ->
+                val entries = l.drop(1).mapNotNull { line ->
+                    val (k, r) = line.split("|", limit = 2)
+                    decode(r)?.let { Entry(k.toInt(), it) }
+                }
+                if (entries.firstOrNull()?.route is Route.Tabbed) Nav(entries, l[0].toInt()) else start()
+            },
+        )
+
+        private fun encode(r: Route): String = when (r) {
+            is Route.Tabbed -> "tab:${r.tab.name}"
+            is Route.TxnDetail -> "txn:${r.id}"
+            is Route.Category -> "cat:${r.cat.name}"
+            is Route.Day -> "day:${r.epochDay}"
+            is Route.Cats -> "cats:${r.month}"
+            Route.Search -> "search"
+        }
+
+        private fun decode(s: String): Route? = runCatching {
+            val p = s.split(":")
+            when (p[0]) {
+                "tab" -> Route.Tabbed(Tab.valueOf(p[1]))
+                "txn" -> Route.TxnDetail(p[1].toLong())
+                "cat" -> Route.Category(Cat.valueOf(p[1]))
+                "day" -> Route.Day(p[1].toLong())
+                "cats" -> Route.Cats(p[1])
+                "search" -> Route.Search
+                else -> null
+            }
+        }.getOrNull()
+    }
 }
 
 @Composable
@@ -80,8 +132,11 @@ private fun Root(vm: AppViewModel, s: AppState, onAskPermission: () -> Unit) {
 
 @Composable
 private fun Main(vm: AppViewModel, s: AppState) {
-    val nav = remember { Nav(Route.Tabbed(Tab.HOME)) }
-    val currentTab = (nav.stack.first() as Route.Tabbed).tab
+    val nav = rememberSaveable(saver = Nav.Saver) { Nav.start() }
+    // Screens leave composition when something is pushed on top; this keeps their saved state until they come back.
+    val saved = rememberSaveableStateHolder()
+    nav.onDrop = saved::removeState
+    val currentTab = (nav.stack.first().route as Route.Tabbed).tab
     BackHandler(enabled = nav.stack.size > 1 || currentTab != Tab.HOME) {
         if (nav.stack.size > 1) nav.pop() else nav.tab(Tab.HOME)
     }
@@ -89,7 +144,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
         AnimatedContent(
             targetState = nav.top,
             transitionSpec = {
-                val tabSwitch = initialState is Route.Tabbed && targetState is Route.Tabbed
+                val tabSwitch = initialState.route is Route.Tabbed && targetState.route is Route.Tabbed
                 when {
                     tabSwitch -> fadeIn(tween(220)) togetherWith fadeOut(tween(160))
                     nav.forward -> (slideInHorizontally(tween(360)) { it / 3 } + fadeIn(tween(300))) togetherWith
@@ -99,23 +154,25 @@ private fun Main(vm: AppViewModel, s: AppState) {
                 }
             },
             label = "route",
-        ) { r ->
-            when (r) {
-                is Route.Tabbed -> when (r.tab) {
-                    Tab.HOME -> HomeScreen(s, vm, nav)
-                    Tab.ACTIVITY -> ActivityScreen(s, nav)
-                    Tab.INSIGHTS -> InsightsScreen(s, nav)
-                    Tab.ACCOUNTS -> AccountsScreen(s, vm, nav)
+        ) { e ->
+            saved.SaveableStateProvider(e.key) {
+                when (val r = e.route) {
+                    is Route.Tabbed -> when (r.tab) {
+                        Tab.HOME -> HomeScreen(s, vm, nav)
+                        Tab.ACTIVITY -> ActivityScreen(s, nav)
+                        Tab.INSIGHTS -> InsightsScreen(s, nav)
+                        Tab.ACCOUNTS -> AccountsScreen(s, vm, nav)
+                    }
+                    is Route.TxnDetail -> s.txns.firstOrNull { it.id == r.id }
+                        ?.let { TxnScreen(it, s, vm, nav) } ?: LaunchedEffect(r) { nav.pop() }
+                    is Route.Category -> CategoryScreen(r.cat, s, nav)
+                    is Route.Day -> DayScreen(java.time.LocalDate.ofEpochDay(r.epochDay), s, nav)
+                    Route.Search -> SearchScreen(s, nav)
+                    is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
                 }
-                is Route.TxnDetail -> s.txns.firstOrNull { it.id == r.id }
-                    ?.let { TxnScreen(it, s, vm, nav) } ?: LaunchedEffect(r) { nav.pop() }
-                is Route.Category -> CategoryScreen(r.cat, s, nav)
-                is Route.Day -> DayScreen(java.time.LocalDate.ofEpochDay(r.epochDay), s, nav)
-                Route.Search -> SearchScreen(s, nav)
-                is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
             }
         }
-        if (nav.top is Route.Tabbed) {
+        if (nav.top.route is Route.Tabbed) {
             BottomBar(currentTab, nav::tab, Modifier.align(Alignment.BottomCenter))
         }
     }
