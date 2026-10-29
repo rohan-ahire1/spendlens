@@ -112,8 +112,10 @@ object Ask {
 
     fun answer(q: Question, today: LocalDate, txns: List<Txn>, catOf: (Txn) -> Cat, counts: (Txn) -> Boolean): Answer {
         val first = txns.minOfOrNull { it.date() } ?: today
+        // A fully refunded payment cost nothing, so it isn't one of the payments counted, as in the recap.
+        fun kept(t: Txn) = !t.debit || t.amount > 0
         val f = filterOf(q.subject, q.income, catOf, counts)
-        val matching = txns.filter(f).sortedByDescending { it.time }
+        val matching = txns.filter { f(it) && kept(it) }.sortedByDescending { it.time }
         val who = label(q.subject, q.income)
         val noun = if (q.income) "credit" else "payment"
         val allTime = q.span == null
@@ -195,7 +197,7 @@ object Ask {
             Kind.COMPARE -> {
                 val sb = q.vsSubject
                 if (sb != null) {
-                    val other = txns.filter(filterOf(sb, q.income, catOf, counts)).sortedByDescending { it.time }
+                    val other = txns.filter { filterOf(sb, q.income, catOf, counts)(it) && kept(it) }.sortedByDescending { it.time }
                     val l2 = other.filter { it.date() in sp }
                     val b = l2.sumOf { it.amount }
                     val who2 = label(sb, q.income)

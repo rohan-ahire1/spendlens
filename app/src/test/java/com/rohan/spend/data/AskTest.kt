@@ -332,6 +332,13 @@ class AskTest {
         assertEquals(rs(2000), a.value)
     }
 
+    @Test fun fullyRefundedPaymentIsNotCounted() {
+        // A netted copy of a payment that came back in full has nothing left.
+        val l = listOf(tx("2026-10-06", 500, "Myntra").copy(amount = 0), tx("2026-10-07", 300, "Myntra"))
+        val a = (Ask.reply("how many times myntra this month", today, l, catOf, Stats(l, catOf, Counting(), today)::counts) as Reply.Done).a
+        assertEquals(1L, a.value)
+    }
+
     @Test fun salaryLastMonth() {
         val qq = q("salary last month")
         assertTrue(qq.income)
