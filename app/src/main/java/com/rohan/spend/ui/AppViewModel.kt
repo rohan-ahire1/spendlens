@@ -26,6 +26,7 @@ import com.rohan.spend.data.Stats
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
 import com.rohan.spend.data.groupIndian
+import com.rohan.spend.data.renewalsDue
 import com.rohan.spend.data.summaryDue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -276,7 +277,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Turned on after 9 pm: tonight's comes now rather than tomorrow.
         if (v && summaryDue(LocalDateTime.now(), prefs.summarySent)) viewModelScope.launch(Dispatchers.IO) { runCatching { Notify.summary(getApplication()) } }
     }
-    fun setRenewalAlerts(v: Boolean) { prefs.renewalAlerts = v; _state.update { it.copy(renewalAlerts = v) }; Alarms.schedule(getApplication()) }
+    fun setRenewalAlerts(v: Boolean) {
+        prefs.renewalAlerts = v
+        _state.update { it.copy(renewalAlerts = v) }
+        Alarms.schedule(getApplication())
+        // Turned on during the day: a charge due tomorrow gets its heads-up now, not on the day itself.
+        if (v && renewalsDue(java.time.LocalTime.now())) viewModelScope.launch(Dispatchers.IO) { runCatching { Notify.renewals(getApplication()) } }
+    }
     fun setTarget(paise: Long) { prefs.target = paise; _state.update { it.copy(target = paise) } }
 
     fun resetEdits() {
