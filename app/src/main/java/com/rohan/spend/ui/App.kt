@@ -162,6 +162,9 @@ private fun Main(vm: AppViewModel, s: AppState) {
                 }
             },
             label = "route",
+            // Saved state is keyed by where it sits in the tree. An Entry's own hash goes through enum hashes,
+            // which change when the process is recreated, so a screen's month or scroll would be lost after the system kills the app.
+            contentKey = { it.key },
         ) { e ->
             saved.SaveableStateProvider(e.key) {
                 when (val r = e.route) {
