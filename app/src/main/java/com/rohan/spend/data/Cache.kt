@@ -71,6 +71,12 @@ object TxnCache {
     /** The one cache file, shared by the app and the widget and alarms. */
     fun file(context: Context) = File(context.filesDir, "txns.bin")
 
+    /**
+     * Held across load, sync and save by the app and by background work alike, so neither can save over
+     * messages the other read in the meantime.
+     */
+    val syncLock = Any()
+
     fun load(f: File): Snapshot? = synchronized(this) {
         if (!f.exists()) return null
         return f.inputStream().use(::read) ?: run { f.delete(); null }

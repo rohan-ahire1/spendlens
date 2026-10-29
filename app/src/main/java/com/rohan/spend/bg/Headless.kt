@@ -26,14 +26,12 @@ object Headless {
      */
     fun load(context: Context, read: Boolean = true): AppState? {
         val file = TxnCache.file(context)
-        var snap = TxnCache.load(file) ?: return null
         val prefs = Prefs(context)
-        if (read && prefs.autoRefresh && canRead(context)) {
-            runCatching { SmsSource.sync(context, snap.maxId, snap.lastDate, snap.txns, wholeOk = false) }.getOrNull()?.let {
-                runCatching { TxnCache.save(file, it) }
-                snap = it
-            }
-        }
+        val snap = if (read && prefs.autoRefresh && canRead(context)) synchronized(TxnCache.syncLock) {
+            val old = TxnCache.load(file) ?: return null
+            runCatching { SmsSource.sync(context, old.maxId, old.lastDate, old.txns, wholeOk = false) }.getOrNull()
+                ?.also { runCatching { TxnCache.save(file, it) } } ?: old
+        } else TxnCache.load(file) ?: return null
         return AppState(stage = Stage.READY, txns = snap.txns, foundCount = snap.txns.size, today = LocalDate.now()).withPrefs(prefs)
     }
 

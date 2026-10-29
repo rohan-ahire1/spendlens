@@ -202,9 +202,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val started = System.currentTimeMillis()
             val app = getApplication<Application>()
             val snap = withContext(Dispatchers.IO) {
-                SmsSource.sync(app, known, lastSmsDate, _state.value.txns) { done, total, found ->
-                    _progress.value = ScanProgress(done, total, found.reversed())
-                }!!.also { runCatching { TxnCache.save(cacheFile, it) } }
+                synchronized(TxnCache.syncLock) {
+                    // Background work may have read newer messages since; start from those.
+                    val disk = if (full) null else TxnCache.load(cacheFile)?.takeIf { it.maxId > known || it.lastDate > lastSmsDate }
+                    SmsSource.sync(app, disk?.maxId ?: known, disk?.lastDate ?: lastSmsDate, disk?.txns ?: _state.value.txns) { done, total, found ->
+                        _progress.value = ScanProgress(done, total, found.reversed())
+                    }!!.also { runCatching { TxnCache.save(cacheFile, it) } }
+                }
             }
             maxSmsId = snap.maxId
             lastSmsDate = snap.lastDate
