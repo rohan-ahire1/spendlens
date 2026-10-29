@@ -44,12 +44,14 @@ object TxnCache {
         d.flush()
     }
 
-    /** Null when the data is from another version or damaged in any way. */
+    /** Null when the data is from another version or damaged in any way. Version 1 is the same without the date. */
     fun read(inp: InputStream): Snapshot? = runCatching {
         val d = DataInputStream(inp.buffered())
-        if (d.readInt() != MAGIC || d.readInt() != VERSION) return null
+        if (d.readInt() != MAGIC) return null
+        val v = d.readInt()
+        if (v != VERSION && v != 1) return null
         val maxId = d.readLong()
-        val lastDate = d.readLong()
+        val lastDate = if (v == 1) -1 else d.readLong()
         val n = d.readInt()
         if (n < 0) return null
         val l = ArrayList<Txn>(minOf(n, 100_000))
@@ -62,7 +64,8 @@ object TxnCache {
             )
         }
         if (d.read() != -1) return null
-        Snapshot(maxId, lastDate, l)
+        // The newest payment is no later than the newest SMS, so the next sync rereads a little more than needed, never less.
+        Snapshot(maxId, if (lastDate < 0) l.maxOfOrNull { it.time } ?: 0 else lastDate, l)
     }.getOrNull()
 
     /** The one cache file, shared by the app and the widget and alarms. */

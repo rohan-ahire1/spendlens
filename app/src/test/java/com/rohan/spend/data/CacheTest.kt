@@ -33,6 +33,17 @@ class CacheTest {
         assertNull(TxnCache.read(ByteArrayInputStream(old)))
     }
 
+    @Test fun readsAVersionOneCache() {
+        // Version 1 had no newest-SMS date after the highest _ID.
+        val b = bytes(Snapshot(5, 7777, listOf(txn(2, 2000), txn(1, 1000))))
+        val v1 = b.copyOfRange(0, 16) + b.copyOfRange(24, b.size)
+        v1[7] = 1
+        // The newest payment stands in for the date, so the next sync rereads from there.
+        assertEquals(Snapshot(5, 2000, listOf(txn(2, 2000), txn(1, 1000))), TxnCache.read(ByteArrayInputStream(v1)))
+        val empty = bytes(Snapshot(0, 0, emptyList())).let { it.copyOfRange(0, 16) + it.copyOfRange(24, it.size) }.also { it[7] = 1 }
+        assertEquals(Snapshot(0, 0, emptyList()), TxnCache.read(ByteArrayInputStream(empty)))
+    }
+
     @Test fun mergeDropsDeletedAndKeepsNewestFirst() {
         val cached = listOf(txn(3, 3000), txn(2, 2000), txn(1, 1000))
         val fresh = listOf(txn(5, 5000), txn(3, 3000))
