@@ -69,5 +69,7 @@ class SmsParserTest {
         assertEquals("−₹42,027", inr(-42_027_00))
         assertEquals("₹1.2L", inrShort(1_20_966_00))
         assertEquals("₹42k", inrShort(42_027_00))
+        assertEquals("₹2k", inrShort(1_975_00))
+        assertEquals("₹1L", inrShort(99_700_00))
     }
 }

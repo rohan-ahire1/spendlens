@@ -51,8 +51,9 @@ fun inrShort(paise: Long): String {
     val r = abs(paise) / 100.0
     val sign = if (paise < 0) "−" else ""
     return when {
-        r >= 100_000 -> sign + "₹" + trim(r / 100_000) + "L"
-        r >= 1_000 -> sign + "₹" + (r / 1_000).toLong() + "k"
+        // Rounded, not cut: ₹1,975 reads as ₹2k, and anything that would round to 100k is a lakh.
+        r >= 99_500 -> sign + "₹" + trim(r / 100_000) + "L"
+        r >= 1_000 -> sign + "₹" + Math.round(r / 1_000) + "k"
         else -> sign + "₹" + r.toLong()
     }
 }
