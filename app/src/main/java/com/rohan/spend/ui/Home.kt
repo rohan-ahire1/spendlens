@@ -76,7 +76,6 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
     val ym = viewed?.let(YearMonth::parse)?.takeIf { it < st.thisMonth } ?: st.thisMonth
     val current = ym == st.thisMonth
     val daily = remember(st, ym) { st.dailyIn(ym) }
-    val cats = remember(st, ym) { st.byCatIn(ym) }
     val spent = daily.values.sum()
     val usual = s.usual()
     val due = remember(st) { renewals(st.subs, today, within = 2) }
@@ -119,8 +118,11 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
             ) { nav.push(Route.Day(it.toEpochDay())) }
         }
         item {
-            Crossfade(ym, Modifier.rise(2), tween(320), label = "treemap") { _ ->
-                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it, if (current) null else ym.toString())) }, { nav.push(Route.Cats(ym.toString())) }, budgets.associateBy { it.cat })
+            // Each side draws its own month, so the outgoing one fades out with its own categories.
+            Crossfade(ym, Modifier.rise(2), tween(320), label = "treemap") { m ->
+                val cats = remember(st, m) { st.byCatIn(m) }
+                val now = m == st.thisMonth
+                Treemap(Modifier.padding(top = 10.dp), cats, { nav.push(Route.Category(it, if (now) null else m.toString())) }, { nav.push(Route.Cats(m.toString())) }, s.budgetsIn(m).associateBy { it.cat })
             }
         }
         if (current && budgets.any { it.warn }) item { PaceCard(budgets, nav, Modifier.rise(3)) }

@@ -70,7 +70,6 @@ fun DayScreen(start: LocalDate, s: AppState, nav: Nav) {
     val st = s.stats
     val all = remember(s.visible, day) { s.visible.filter { it.date() == day } }
     val spent = all.filter(st::counts).sumOf { st.spend(it) }
-    val shown = all.filter { only == null || it.debit == only }.let { l -> if (biggest) l.sortedByDescending { it.amount } else l.sortedByDescending { it.time } }
     val perDay = s.usual() / 30
 
     LazyColumn(Modifier.fillMaxSize().statusBarsPadding(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
@@ -124,11 +123,16 @@ fun DayScreen(start: LocalDate, s: AppState, nav: Nav) {
                         val dir = if (targetState > initialState) 1 else -1
                         (slideInHorizontally(tween(300)) { it / 4 * dir } + fadeIn(tween(300))) togetherWith fadeOut(tween(150)) using SizeTransform(clip = false)
                     },
-                ) { _ ->
+                ) { e ->
+                // Each side lists its own day, so the outgoing one slides away with what it showed.
+                val d = LocalDate.ofEpochDay(e)
+                val dayAll = remember(s.visible, d) { s.visible.filter { it.date() == d } }
+                val daySpent = dayAll.filter(st::counts).sumOf { st.spend(it) }
+                val shown = dayAll.filter { only == null || it.debit == only }.let { l -> if (biggest) l.sortedByDescending { it.amount } else l.sortedByDescending { it.time } }
                 Column(Modifier.animateContentSize()) {
-                    if (shown.isEmpty()) EmptyNote(if (day > today) "This day hasn't happened yet." else "Nothing here on this day.")
+                    if (shown.isEmpty()) EmptyNote(if (d > today) "This day hasn't happened yet." else "Nothing here on this day.")
                     shown.forEach { t ->
-                        val share = if (t.debit && spent > 0 && st.counts(t)) (st.spend(t) * 100 / spent).let { if (it < 1) "<1% of day" else "$it% of day" } else null
+                        val share = if (t.debit && daySpent > 0 && st.counts(t)) (st.spend(t) * 100 / daySpent).let { if (it < 1) "<1% of day" else "$it% of day" } else null
                         PayRow(t, s.catOf(t), s.notes[t.id], share) { nav.push(Route.TxnDetail(t.id)) }
                     }
                 }
