@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationChannelGroup
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -22,6 +23,19 @@ import com.rohan.spend.data.subAlerts
 import com.rohan.spend.data.summaryDue
 import java.time.LocalDateTime
 import java.time.LocalTime
+
+const val OPEN_FROM_WIDGET = 1
+const val OPEN_FROM_NOTIFICATION = 2
+
+/**
+ * Opens the app the way the launcher does, so a running app comes back where it was rather than starting over.
+ * Each caller has its own [code], or the first PendingIntent made would win for both.
+ */
+fun openApp(context: Context, code: Int): PendingIntent {
+    val open = Intent.makeMainActivity(ComponentName(context, MainActivity::class.java))
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+    return PendingIntent.getActivity(context, code, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+}
 
 object Notify {
     const val SUMMARY = "summary"
@@ -52,13 +66,12 @@ object Notify {
     fun post(context: Context, channel: String, id: Int, title: String, text: String) {
         channels(context)
         if (!allowed(context)) return
-        val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         val n = NotificationCompat.Builder(context, channel)
             .setSmallIcon(R.drawable.ic_stat)
             .setColor(0xFF2D1FB3.toInt())
             .setContentTitle(title)
             .setContentText(text)
-            .setContentIntent(PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            .setContentIntent(openApp(context, OPEN_FROM_NOTIFICATION))
             .setAutoCancel(true)
             .build()
         try { NotificationManagerCompat.from(context).notify(id, n) } catch (_: SecurityException) {}

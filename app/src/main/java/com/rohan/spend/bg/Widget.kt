@@ -1,17 +1,14 @@
 package com.rohan.spend.bg
 
-import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
-import com.rohan.spend.MainActivity
 import com.rohan.spend.R
 import com.rohan.spend.data.MonthLeft
 import com.rohan.spend.data.inr
@@ -65,9 +62,7 @@ object Widget {
     }
 
     private fun views(context: Context, layout: Int, m: MonthLeft?) = RemoteViews(context.packageName, layout).apply {
-        val open = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        setOnClickPendingIntent(android.R.id.background,
-            PendingIntent.getActivity(context, 0, open, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+        setOnClickPendingIntent(android.R.id.background, openApp(context, OPEN_FROM_WIDGET))
         val wide = layout == R.layout.widget_wide
         if (m == null) {
             setTextViewText(R.id.amount, "Spend Lens")
