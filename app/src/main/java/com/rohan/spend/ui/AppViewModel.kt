@@ -8,6 +8,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.rohan.spend.bg.Alarms
+import com.rohan.spend.bg.Notify
 import com.rohan.spend.bg.Widget
 import com.rohan.spend.bg.monthLeft
 import com.rohan.spend.data.Cat
@@ -25,6 +26,7 @@ import com.rohan.spend.data.Stats
 import com.rohan.spend.data.Txn
 import com.rohan.spend.data.date
 import com.rohan.spend.data.groupIndian
+import com.rohan.spend.data.summaryDue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -39,6 +41,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
 enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
@@ -266,7 +269,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setExcludeFamily(v: Boolean) { prefs.excludeFamily = v; _state.update { it.copy(excludeFamily = v) } }
     fun setCountCardBills(v: Boolean) { prefs.countCardBills = v; _state.update { it.copy(countCardBills = v) } }
     fun setAutoRefresh(v: Boolean) { prefs.autoRefresh = v; _state.update { it.copy(autoRefresh = v) } }
-    fun setEveningSummary(v: Boolean) { prefs.eveningSummary = v; _state.update { it.copy(eveningSummary = v) }; Alarms.schedule(getApplication()) }
+    fun setEveningSummary(v: Boolean) {
+        prefs.eveningSummary = v
+        _state.update { it.copy(eveningSummary = v) }
+        Alarms.schedule(getApplication())
+        // Turned on after 9 pm: tonight's comes now rather than tomorrow.
+        if (v && summaryDue(LocalDateTime.now(), prefs.summarySent)) viewModelScope.launch(Dispatchers.IO) { runCatching { Notify.summary(getApplication()) } }
+    }
     fun setRenewalAlerts(v: Boolean) { prefs.renewalAlerts = v; _state.update { it.copy(renewalAlerts = v) }; Alarms.schedule(getApplication()) }
     fun setTarget(paise: Long) { prefs.target = paise; _state.update { it.copy(target = paise) } }
 
