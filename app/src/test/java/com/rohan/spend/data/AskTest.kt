@@ -245,6 +245,21 @@ class AskTest {
     @Test fun compareWeekWithWeekBefore() = assertEquals(span("2026-10-19", "2026-10-22"), q("spent this week compared to last").vs)
     @Test fun finishedMonthsCompareWhole() =
         assertEquals(span("2026-08-01", "2026-08-31"), q("spent september vs august").vs)
+    @Test fun compareLastMonthFirst() {
+        val qq = q("spent last month vs this month")
+        assertEquals(span("2026-09-01", "2026-09-29"), qq.span)
+        assertEquals(span("2026-10-01", "2026-10-29"), qq.vs)
+    }
+
+    @Test fun compareNamedMonthsWhileTheLaterIsUnderWay() {
+        val qq = q("spent september vs october")
+        assertEquals(span("2026-09-01", "2026-09-29"), qq.span)
+        assertEquals(span("2026-10-01", "2026-10-29"), qq.vs)
+        val rev = q("spent october vs september")
+        assertEquals(span("2026-10-01", "2026-10-29"), rev.span)
+        assertEquals(span("2026-09-01", "2026-09-29"), rev.vs)
+    }
+
     @Test fun compareEarlyInTheMonth() {
         val on = LocalDate.of(2026, 10, 3)
         assertEquals(span("2026-09-01", "2026-09-03"), q("spent this month vs last month", on).vs)
@@ -272,8 +287,18 @@ class AskTest {
         assertEquals(setOf("torrent power"), sub("how much on torrent"))
         // A typo in a whole word still finds it.
         assertEquals(setOf("the steakhouse"), sub("how much on steakhose"))
+        assertEquals(setOf("the steakhouse"), sub("how much on house"))
         assertTrue(AskParser.parse("how much on tea", today, p) !is Parsed.Ok ||
             (AskParser.parse("how much on tea", today, p) as Parsed.Ok).q.subject !is Subject.Payee)
+    }
+
+    @Test fun longerTermsMatchMidWord() {
+        val l = listOf(tx("2026-10-10", 900, "BigBasket"), tx("2026-10-11", 1500, "Torrent Power"))
+        val p = l.map { it.payee to it.payeeKey }
+        fun sub(s: String) = ((AskParser.parse(s, today, p) as Parsed.Ok).q.subject as Subject.Payee).keys
+        assertEquals(setOf("bigbasket"), sub("how much on basket"))
+        // Four letters still have to start a word.
+        assertTrue(AskParser.parse("how much on rent", today, p).let { it !is Parsed.Ok || it.q.subject !is Subject.Payee })
     }
 
     @Test fun comparePayees() {

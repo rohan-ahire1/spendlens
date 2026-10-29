@@ -234,7 +234,7 @@ object AskParser {
         val t = squash(phrase)
         if (t.length < 3) return null
         // The bank's part of a UPI handle would match everyone, so only the name side counts.
-        var hit = payees.filter { (n, k) -> startsAWord(n, t) || startsAWord(k.substringBefore('@'), t) }
+        var hit = payees.filter { (n, k) -> starts(n, t) || starts(k.substringBefore('@'), t) }
         if (hit.isEmpty() && t.length >= 4) {
             val room = if (t.length >= 7) 2 else 1
             hit = payees.filter { (n, _) -> lev(squash(n), t) <= room || n.split(' ').any { w -> squash(w).length >= 3 && lev(squash(w), t) <= room } }
@@ -244,8 +244,12 @@ object AskParser {
         return Subject.Payee(name, hit.map { it.second }.toSet())
     }
 
-    /** Whether [t] begins at one of [name]'s words: "rent" isn't in "Torrent Power", "power" is. */
-    private fun startsAWord(name: String, t: String): Boolean {
+    /**
+     * Whether [t] begins at one of [name]'s words: "rent" isn't in "Torrent Power", "power" is.
+     * Five letters or more can start mid-word too, so "basket" finds BigBasket.
+     */
+    private fun starts(name: String, t: String): Boolean {
+        if (t.length >= 5 && t in squash(name)) return true
         val w = name.split(Regex("""[^\p{L}\p{N}]+""")).filter { it.isNotEmpty() }
         return w.indices.any { i -> squash(w.drop(i).joinToString("")).startsWith(t) }
     }
@@ -273,11 +277,14 @@ object AskParser {
     }
 
     /**
-     * [b] cut to as many days as [a] when [a] is still under way, so month-to-date
-     * meets the same days of last month rather than all of it.
+     * [a] and [b], with the earlier one cut to as many days as the other when that one is still under way, so
+     * month-to-date meets the same days of last month rather than all of it, whichever is named first.
      */
-    fun alike(a: Span, b: Span, today: LocalDate): Span =
-        if (a.to == today && b.to.isBefore(a.from) && b.days > a.days) Span(b.from, b.from.plusDays(a.days - 1)) else b
+    fun alike(a: Span, b: Span, today: LocalDate): Pair<Span, Span> {
+        fun cut(done: Span, open: Span) =
+            if (open.to == today && done.to.isBefore(open.from) && done.days > open.days) Span(done.from, done.from.plusDays(open.days - 1)) else done
+        return cut(a, b) to cut(b, a)
+    }
 
     private val prevWords = setOf("last", "previous", "prior", "before", "usual")
 
@@ -300,7 +307,8 @@ object AskParser {
             if (spans.size >= 2) {
                 val phrase = words("$left $right").joinToString(" ")
                 val sub = subject(phrase, payees) ?: return unknown(phrase)
-                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], alike(spans[0], spans[1], today)))
+                val (a, b) = alike(spans[0], spans[1], today)
+                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, a, b))
             }
             var lw = words(left)
             if (lw.isEmpty() && Regex("""\band\b""").containsMatchIn(right)) {
@@ -311,7 +319,7 @@ object AskParser {
             if (spans.size == 1 && (rw.isEmpty() || rw.all { it in prevWords })) {
                 val phrase = lw.joinToString(" ")
                 val sub = subject(phrase, payees) ?: return unknown(phrase)
-                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], alike(spans[0], before(spans[0]), today)))
+                return Parsed.Ok(Question(Kind.COMPARE, inc(sub), sub, spans[0], alike(spans[0], before(spans[0]), today).second))
             }
             if (lw.isNotEmpty() && rw.isNotEmpty()) {
                 val a = subject(lw.joinToString(" "), payees) ?: return unknown(lw.joinToString(" "))
