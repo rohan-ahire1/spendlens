@@ -157,7 +157,8 @@ private fun Line(label: String, onClick: (() -> Unit)? = null, value: @Composabl
         Modifier.fillMaxWidth().then(if (onClick != null) Modifier.press(onClick) else Modifier).padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, style = T.label, modifier = Modifier.weight(1f))
+        // A gap so a long label and value never run together with large text.
+        Text(label, style = T.label, modifier = Modifier.weight(1f).padding(end = 12.dp))
         value()
     }
 }
