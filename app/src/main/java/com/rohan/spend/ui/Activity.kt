@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -184,6 +185,14 @@ fun SearchScreen(s: AppState, nav: Nav) {
     }
     val ask = rememberAsk(q, s)
     val shown = ask.list(hits)
+    val list = rememberLazyListState()
+    val hasCard = ask.reply != null
+    var hadCard by rememberSaveable { mutableStateOf(hasCard) }
+    // The list keeps its place by item, so an answer added above a hit that was already on top would sit out of view.
+    LaunchedEffect(hasCard) {
+        if (hasCard && !hadCard) list.scrollToItem(0)
+        hadCard = hasCard
+    }
     Column(Modifier.fillMaxSize().statusBarsPadding().imePadding().padding(horizontal = 20.dp)) {
         Row(Modifier.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Row(
@@ -208,7 +217,7 @@ fun SearchScreen(s: AppState, nav: Nav) {
                 Text(inr(shown.filter { it.debit && s.catOf(it) != Cat.TRANSFER }.sumOf(s.stats::spend)) + " spent", style = T.label)
             }
         }
-        LazyColumn(contentPadding = PaddingValues(bottom = 40.dp)) {
+        LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp)) {
             askItems(ask, q, s) { q = it }
             dayGroups(shown.take(300), s, nav)
             if (q.isNotBlank() && shown.isEmpty()) item { EmptyNote("No matches for \"$q\".") }
