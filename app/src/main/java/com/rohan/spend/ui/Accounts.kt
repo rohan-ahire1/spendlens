@@ -167,7 +167,7 @@ fun AccountsScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         AlertDialog(
             onDismissRequest = { confirmReset = false },
             title = { Text("Reset your edits?") },
-            text = { Text("Your categories, notes, budgets, splits, hidden items and settings go back to default. Your messages aren't touched.") },
+            text = { Text("Your categories, notes, budgets, splits, hidden items and settings go back to default. Reminders and your messages aren't touched.") },
             confirmButton = { TextButton({ vm.resetEdits(); confirmReset = false }) { Text("Reset", color = C.red) } },
             dismissButton = { TextButton({ confirmReset = false }) { Text("Cancel", color = C.muted) } },
             containerColor = Color.White,

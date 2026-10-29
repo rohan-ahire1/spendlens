@@ -65,7 +65,14 @@ class Prefs(context: Context) {
         get() = p.getStringSet("alertsSeen", emptySet())!!.toSet()
         set(v) = p.edit().putStringSet("alertsSeen", v).apply()
 
-    fun clear() = p.edit().clear().apply()
+    /** Back to defaults, except reminders: they stay on or off, and alerts already sent aren't sent again. */
+    fun clear() {
+        val e = p.edit()
+        p.all.keys.filter { it !in kept }.forEach { e.remove(it) }
+        e.apply()
+    }
+
+    private val kept = setOf("eveningSummary", "summarySent", "renewalAlerts", "alertsSeen")
 
     // Tab and newline never appear in keys we write, so a flat string is enough.
     private fun readMap(key: String): Map<String, String> =
