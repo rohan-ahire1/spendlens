@@ -64,6 +64,15 @@ class GlanceTest {
         assertFalse(summaryDue(LocalDateTime.of(2026, 10, 30, 0, 20), "2026-10-29"))
     }
 
+    @Test fun renewalsOnlyByDay() {
+        assertFalse(renewalsDue(LocalTime.of(3, 0)))
+        assertFalse(renewalsDue(LocalTime.of(7, 59)))
+        assertTrue(renewalsDue(LocalTime.of(8, 0)))
+        assertTrue(renewalsDue(LocalTime.of(9, 20)))
+        assertTrue(renewalsDue(LocalTime.of(20, 59)))
+        assertFalse(renewalsDue(LocalTime.of(21, 0)))
+    }
+
     @Test fun nextNinePmIsTonightBeforeNine() {
         val now = ZonedDateTime.of(2026, 10, 29, 14, 5, 0, 0, ist)
         assertEquals(ZonedDateTime.of(2026, 10, 29, 21, 0, 0, 0, ist), nextAt(now, ninePm))

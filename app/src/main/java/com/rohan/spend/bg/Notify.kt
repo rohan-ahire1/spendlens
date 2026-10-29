@@ -17,9 +17,11 @@ import com.rohan.spend.R
 import com.rohan.spend.data.Prefs
 import com.rohan.spend.data.nudgeCopy
 import com.rohan.spend.data.pruneSeen
+import com.rohan.spend.data.renewalsDue
 import com.rohan.spend.data.subAlerts
 import com.rohan.spend.data.summaryDue
 import java.time.LocalDateTime
+import java.time.LocalTime
 
 object Notify {
     const val SUMMARY = "summary"
@@ -74,10 +76,10 @@ object Notify {
         prefs.summarySent = now.toLocalDate().toString()
     }
 
-    /** The morning check: renewals in the next two days and fresh price rises, each told once. */
+    /** The morning check: renewals in the next two days and fresh price rises, each told once, by day only. */
     fun renewals(context: Context) {
         val prefs = Prefs(context)
-        if (!prefs.renewalAlerts || !allowed(context)) return
+        if (!prefs.renewalAlerts || !renewalsDue(LocalTime.now()) || !allowed(context)) return
         val s = Headless.load(context) ?: return
         val seen = pruneSeen(prefs.alertsSeen, s.today)
         val new = subAlerts(s.stats.subs, s.today, seen)

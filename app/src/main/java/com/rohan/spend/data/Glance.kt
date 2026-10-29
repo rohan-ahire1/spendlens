@@ -28,6 +28,9 @@ const val SUMMARY_HOUR = 21
 /** Renewal alerts come in the morning, while there's still time to cancel. */
 const val RENEWALS_HOUR = 9
 
+/** Renewal alerts make a sound, so they only go out from 8 am to 9 pm. One held up later waits for the next morning. */
+fun renewalsDue(now: LocalTime): Boolean = now.hour in 8 until SUMMARY_HOUR
+
 /** The evening summary goes out once a day, from 9 pm to midnight. An alarm held up past midnight is dropped. */
 fun summaryDue(now: LocalDateTime, lastSent: String): Boolean =
     now.hour >= SUMMARY_HOUR && lastSent != now.toLocalDate().toString()
