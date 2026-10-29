@@ -48,6 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
+import com.rohan.spend.data.Cat
 import com.rohan.spend.data.Channel
 import com.rohan.spend.data.Reply
 import com.rohan.spend.data.Txn
@@ -154,7 +155,8 @@ fun androidx.compose.foundation.lazy.LazyListScope.dayGroups(list: List<Txn>, s:
                         Text(if (day == today) "Today" else if (day == today.minusDays(1)) "Yesterday" else day.format(dow), style = T.h3)
                         Text(day.format(mon) + if (day.year != today.year) " ${day.year}" else "", style = T.tiny)
                     }
-                    val out = txns.filter { it.debit }.sumOf(s.stats::spend)
+                    // Money moved between your own accounts never left you, so it isn't part of the day's total.
+                    val out = txns.filter { it.debit && s.catOf(it) != Cat.TRANSFER }.sumOf(s.stats::spend)
                     if (out > 0) Text(inr(out), style = T.num.copy(color = C.muted))
                 }
                 FrostCard(pad = 14.dp) {
@@ -203,7 +205,7 @@ fun SearchScreen(s: AppState, nav: Nav) {
         if (q.isNotBlank() && ask.reply !is Reply.Done) {
             Row(Modifier.padding(vertical = 6.dp)) {
                 Text("${shown.size} found", style = T.label, modifier = Modifier.weight(1f))
-                Text(inr(shown.filter { it.debit }.sumOf(s.stats::spend)) + " spent", style = T.label)
+                Text(inr(shown.filter { it.debit && s.catOf(it) != Cat.TRANSFER }.sumOf(s.stats::spend)) + " spent", style = T.label)
             }
         }
         LazyColumn(contentPadding = PaddingValues(bottom = 40.dp)) {
