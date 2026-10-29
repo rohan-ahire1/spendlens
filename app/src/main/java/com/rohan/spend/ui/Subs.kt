@@ -110,7 +110,8 @@ fun RenewalCard(r: List<Renewal>, modifier: Modifier = Modifier, onClick: () -> 
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("${first.sub.payee} ${renewsIn(first.days)} · ${inr(first.sub.amount)}", style = T.body.copy(fontWeight = FontWeight.SemiBold),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    // Two lines so large text doesn't cut off the amount.
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val more = r.drop(1)
                 val sub = when {
                     more.isNotEmpty() -> "Also ${more.joinToString { it.sub.payee }} · ${inr(r.sumOf { it.sub.amount })} in all"
