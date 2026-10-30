@@ -12,7 +12,6 @@ import com.rohan.spend.bg.Notify
 import com.rohan.spend.bg.Widget
 import com.rohan.spend.bg.monthLeft
 import com.rohan.spend.data.Cat
-import com.rohan.spend.data.Categorizer
 import com.rohan.spend.data.Counting
 import com.rohan.spend.data.Prefs
 import com.rohan.spend.data.Refunds
@@ -47,6 +46,49 @@ import java.time.ZonedDateTime
 
 enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
 
+/** Everything the slow numbers depend on. A state change that leaves these alone costs nothing to show. */
+private data class Inputs(
+    val txns: List<Txn>,
+    val payeeRules: Map<String, Cat>,
+    val txnCats: Map<Long, Cat>,
+    val hidden: Set<Long>,
+    val excludeFamily: Boolean,
+    val countCardBills: Boolean,
+    val today: LocalDate,
+    val splits: Map<Long, Split>,
+)
+
+/**
+ * Categories, refunds, transfers and [Stats], worked out once for a set of [Inputs]. Every [AppState] copy starts
+ * blank, so without this a scan starting or a note being saved would redo all of it on the main thread.
+ */
+private class Derived private constructor(private val i: Inputs) {
+    // Every screen asks for categories many times over.
+    private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
+    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) {
+        i.txnCats[t.id] ?: i.payeeRules[t.payeeKey] ?: Cat.TRANSFER.takeIf { t.id in transfers } ?: t.auto
+    }
+    val visible: List<Txn> by lazy { i.txns.filter { it.id !in i.hidden } }
+    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(i.excludeFamily, i.countCardBills), i.today, ::net) }
+    val netted: List<Txn> by lazy { visible.map { t -> if (t.debit) stats.spend(t).let { if (it != t.amount) t.copy(amount = it) else t } else t } }
+    val byId: Map<Long, Txn> by lazy { i.txns.associateBy { it.id } }
+    val refundOf: Map<Long, Long> by lazy { Refunds.match(visible) { catOf(it) == Cat.REFUND } }
+    val refundsOf: Map<Long, List<Txn>> by lazy {
+        refundOf.entries.groupBy({ it.value }, { byId.getValue(it.key) }).mapValues { e -> e.value.sortedBy { it.time } }
+    }
+    fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, i.splits[t.id]?.mine, refunded(t))
+    fun refunded(t: Txn): Long = refundsOf[t.id]?.sumOf { it.amount } ?: 0
+    // Only visible payments pair up, and one the user filed elsewhere frees its other side to be categorised as usual.
+    val transfers: Map<Long, Long> by lazy {
+        Transfers.find(visible) { t -> t.auto == Cat.REFUND || (i.txnCats[t.id] ?: i.payeeRules[t.payeeKey]).let { it != null && it != Cat.TRANSFER } }
+    }
+
+    companion object {
+        @Volatile private var last: Derived? = null
+        fun of(i: Inputs): Derived = last?.takeIf { it.i == i } ?: Derived(i).also { last = it }
+    }
+}
+
 /** How far a scan has got. Kept out of [AppState] so ticking it doesn't rebuild every screen's numbers. */
 data class ScanProgress(val done: Int = 0, val total: Int = 0, val justFound: List<Txn> = emptyList())
 
@@ -75,31 +117,32 @@ data class AppState(
     val eveningSummary: Boolean = false,
     val renewalAlerts: Boolean = false,
 ) {
-    // Every screen asks for categories many times over; run the regexes once per transaction.
-    private val catMemo = java.util.concurrent.ConcurrentHashMap<Long, Cat>()
-    fun catOf(t: Txn): Cat = catMemo.getOrPut(t.id) {
-        txnCats[t.id] ?: payeeRules[t.payeeKey] ?: Cat.TRANSFER.takeIf { t.id in transfers } ?: Categorizer.auto(t)
-    }
-    val visible: List<Txn> by lazy { txns.filter { it.id !in hidden } }
-    val stats: Stats by lazy { Stats(visible, ::catOf, Counting(excludeFamily, countCardBills), today, ::net) }
+    private val d: Derived by lazy { Derived.of(Inputs(txns, payeeRules, txnCats, hidden, excludeFamily, countCardBills, today, splits)) }
+
+    fun catOf(t: Txn): Cat = d.catOf(t)
+    val visible: List<Txn> get() = d.visible
+    val stats: Stats get() = d.stats
     /** Visible payments with each debit cut to what you actually paid, after refunds and splits. */
-    val netted: List<Txn> by lazy { visible.map { t -> if (t.debit) stats.spend(t).let { if (it != t.amount) t.copy(amount = it) else t } else t } }
+    val netted: List<Txn> get() = d.netted
     fun usual(): Long = if (target > 0) target else stats.usualMonth
 
-    val byId: Map<Long, Txn> by lazy { txns.associateBy { it.id } }
+    val byId: Map<Long, Txn> get() = d.byId
     /** Refund id → the payment it gives money back for. */
-    val refundOf: Map<Long, Long> by lazy { Refunds.match(visible) { catOf(it) == Cat.REFUND } }
+    val refundOf: Map<Long, Long> get() = d.refundOf
     /** Payment id → its refunds, oldest first. */
-    val refundsOf: Map<Long, List<Txn>> by lazy {
-        refundOf.entries.groupBy({ it.value }, { byId.getValue(it.key) }).mapValues { e -> e.value.sortedBy { it.time } }
-    }
+    val refundsOf: Map<Long, List<Txn>> get() = d.refundsOf
     /** What a payment counts for in totals. Credits are left as they are. */
-    fun net(t: Txn): Long = if (!t.debit) t.amount else Refunds.net(t.amount, splits[t.id]?.mine, refunded(t))
-    private fun refunded(t: Txn): Long = refundsOf[t.id]?.sumOf { it.amount } ?: 0
+    fun net(t: Txn): Long = d.net(t)
+    private fun refunded(t: Txn): Long = d.refunded(t)
     /** Each side of a move between the user's own accounts → the other side. */
-    // Only visible payments pair up, and one the user filed elsewhere frees its other side to be categorised as usual.
-    val transfers: Map<Long, Long> by lazy {
-        Transfers.find(visible) { t -> Categorizer.auto(t) == Cat.REFUND || (txnCats[t.id] ?: payeeRules[t.payeeKey]).let { it != null && it != Cat.TRANSFER } }
+    val transfers: Map<Long, Long> get() = d.transfers
+
+    /** Works the numbers out now, so a screen drawing this state finds them ready. Call it off the main thread. */
+    fun warm() {
+        stats.daily
+        stats.usualMonth
+        stats.subs
+        netted
     }
 
     /** Split payment id → the paybacks confirmed for it, oldest first. */
@@ -217,6 +260,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             maxSmsId = snap.maxId
             lastSmsDate = snap.lastDate
             _state.update { it.copy(foundCount = snap.txns.size) }
+            // Done here so new numbers arrive ready, rather than stalling whatever frame first asks for them.
+            withContext(Dispatchers.Default) { _state.value.copy(txns = snap.txns).warm() }
             // Let the scan animation land rather than flashing past.
             if (showScreen) delay((1800 - (System.currentTimeMillis() - started)).coerceAtLeast(0))
             _state.update { it.copy(stage = Stage.READY, txns = snap.txns, refreshing = false, rescanning = false) }
