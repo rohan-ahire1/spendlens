@@ -70,6 +70,8 @@ fun InsightsScreen(s: AppState, nav: Nav) {
     val months = remember(st) { st.sinceHistory(st.monthly(12)) }
     val habits = remember(st) { st.habits() }
     val investing = remember(st) { st.avgMonthly { it.debit && s.catOf(it).bucket == Bucket.INVESTING } }
+    val changes = remember(st) { st.changes() }
+    val places = remember(st) { st.topPlaces() }
     LazyColumn(
         Modifier.fillMaxSize().statusBarsPadding(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = BarClearance),
@@ -81,7 +83,6 @@ fun InsightsScreen(s: AppState, nav: Nav) {
         item {
             FrostCard(Modifier.rise(2)) { MonthBars(months, s.usual(), C.heat[3]) }
         }
-        val changes = st.changes()
         if (changes.isNotEmpty()) {
             item { SectionTitle("Biggest changes", Modifier.rise(3)) }
             item {
@@ -112,7 +113,6 @@ fun InsightsScreen(s: AppState, nav: Nav) {
                 )
             }
         }
-        val places = st.topPlaces()
         if (places.isNotEmpty()) {
             item { SectionTitle("Where you go most", Modifier.rise(10)) { Text("last 90 days", style = T.tiny) } }
             item {

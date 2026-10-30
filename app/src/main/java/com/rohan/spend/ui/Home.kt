@@ -127,7 +127,7 @@ fun HomeScreen(s: AppState, vm: AppViewModel, nav: Nav) {
         }
         if (current && budgets.any { it.warn }) item { PaceCard(budgets, nav, Modifier.rise(3)) }
         if (current) item {
-            val dayTxns = st.onDay(sel)
+            val dayTxns = remember(st, sel) { st.onDay(sel) }
             SectionTitle(dayLabel(sel, today), Modifier.rise(3)) {
                 Text(inr(st.daily[sel] ?: 0L), style = T.num.copy(color = C.muted))
             }
