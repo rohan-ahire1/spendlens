@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -142,10 +143,20 @@ fun Modifier.press(onClick: () -> Unit, haptic: Boolean = false): Modifier = com
         }
 }
 
-/** Fades and lifts content in, staggered by [index]. */
+/** When the screen on show arrived. Stays far ahead of the clock outside a screen, so nothing there is held back. */
+val LocalShownAt = staticCompositionLocalOf { Long.MAX_VALUE }
+
+private const val RISE_WINDOW_MS = 500L
+
+/**
+ * Fades and lifts content in, staggered by [index]. Only as a screen arrives: a list item composed later
+ * is being scrolled to, and making it wait and fade in looks like the list falling behind the finger.
+ */
 fun Modifier.rise(index: Int = 0): Modifier = composed {
-    val p = remember { Animatable(0f) }
+    val shownAt = LocalShownAt.current
+    val p = remember { Animatable(if (System.currentTimeMillis() - shownAt < RISE_WINDOW_MS) 0f else 1f) }
     LaunchedEffect(Unit) {
+        if (p.value == 1f) return@LaunchedEffect
         kotlinx.coroutines.delay(40L * index.coerceAtMost(10))
         p.animateTo(1f, tween(520, easing = FastOutSlowInEasing))
     }

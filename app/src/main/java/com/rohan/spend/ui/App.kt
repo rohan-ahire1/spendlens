@@ -170,6 +170,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
             contentKey = { it.key },
         ) { e ->
             saved.SaveableStateProvider(e.key) {
+                CompositionLocalProvider(LocalShownAt provides remember { System.currentTimeMillis() }) {
                 when (val r = e.route) {
                     is Route.Tabbed -> when (r.tab) {
                         Tab.HOME -> HomeScreen(s, vm, nav)
@@ -185,6 +186,7 @@ private fun Main(vm: AppViewModel, s: AppState) {
                     is Route.Cats -> CatsScreen(java.time.YearMonth.parse(r.month), s, nav)
                     Route.Hidden -> HiddenScreen(s, vm, nav)
                     is Route.Recap -> RecapScreen(java.time.YearMonth.parse(r.month), s, nav, vm::say)
+                }
                 }
             }
         }
