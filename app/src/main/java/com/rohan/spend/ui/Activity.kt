@@ -116,7 +116,7 @@ private fun Fortnight(modifier: Modifier, days: List<Pair<LocalDate, Long>>, per
                     val frac = if (v == 0L) 0f else (kotlin.math.sqrt(v.toFloat() / max)).coerceAtLeast(.08f)
                     Box(Modifier.weight(1f).fillMaxHeight().press({ onPick(d) }), contentAlignment = Alignment.BottomCenter) {
                         Box(
-                            Modifier.fillMaxWidth().fillMaxHeight(grown(frac.coerceAtLeast(.04f), 60L + 25L * i).coerceAtLeast(.001f)).clip(RoundedCornerShape(6.dp))
+                            Modifier.fillMaxWidth().grownHeight(frac.coerceAtLeast(.04f), 60L + 25L * i).clip(RoundedCornerShape(6.dp))
                                 .background(if (v == 0L) C.noSpend else C.heat[lvl])
                                 .then(if (on) Modifier.border(2.dp, C.today, RoundedCornerShape(6.dp)) else Modifier),
                         )

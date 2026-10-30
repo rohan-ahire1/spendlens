@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -61,6 +62,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +77,7 @@ import com.rohan.spend.data.date
 import com.rohan.spend.data.inr
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 // ---------- Surfaces ----------
@@ -267,22 +270,33 @@ fun Pill(text: String, fg: Color, bg: Color) {
 
 /**
  * A value that grows in from zero the first time it shows, after [delayMs], then glides to
- * any new target. For bars and fills.
+ * any new target. For bars and fills. Read it while drawing or laying out where you can:
+ * read during composition, it redoes everything around it on every frame of the growth.
  */
 @Composable
-fun grown(target: Float, delayMs: Long = 0): Float {
+fun growth(target: Float, delayMs: Long = 0): State<Float> {
     val a = remember { Animatable(0f) }
     LaunchedEffect(target) {
         if (a.value == 0f && delayMs > 0) kotlinx.coroutines.delay(delayMs)
         a.animateTo(target, tween(700, easing = FastOutSlowInEasing))
     }
-    return a.value
+    return a.asState()
+}
+
+/** Like fillMaxHeight, with the fraction growing in as [growth] does, for a chart's columns. */
+fun Modifier.grownHeight(target: Float, delayMs: Long = 0): Modifier = composed {
+    val f = growth(target, delayMs)
+    layout { m, c ->
+        val h = (c.maxHeight * f.value.coerceAtLeast(.001f)).roundToInt()
+        val p = m.measure(c.copy(minHeight = h, maxHeight = h))
+        layout(p.width, p.height) { p.place(0, 0) }
+    }
 }
 
 /** A horizontal bar that grows in from the left. */
 @Composable
 fun GrowBar(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 6.dp, delayMs: Long = 0) {
-    val f = grown(fraction.coerceIn(0f, 1f), delayMs)
+    val f by growth(fraction.coerceIn(0f, 1f), delayMs)
     Box(modifier.fillMaxWidth().height(height).clip(CircleShape).background(C.track)) {
         Box(Modifier.fillMaxWidth(f).height(height).clip(CircleShape).background(color))
     }

@@ -225,8 +225,8 @@ private fun MonthSplit(accounts: List<Stats.Account>) {
             Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth().height(28.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 spending.forEachIndexed { i, a ->
-                    val g = grown(1f, 100L + 80L * i).coerceAtLeast(.001f)
-                    Box(Modifier.weight(a.monthSpend.toFloat() / total).graphicsLayer { scaleX = g; transformOrigin = TransformOrigin(0f, .5f) }.fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(shades[minOf(i, 3)]))
+                    val g = growth(1f, 100L + 80L * i)
+                    Box(Modifier.weight(a.monthSpend.toFloat() / total).graphicsLayer { scaleX = g.value.coerceAtLeast(.001f); transformOrigin = TransformOrigin(0f, .5f) }.fillMaxHeight().clip(RoundedCornerShape(8.dp)).background(shades[minOf(i, 3)]))
                 }
             }
             Spacer(Modifier.height(12.dp))

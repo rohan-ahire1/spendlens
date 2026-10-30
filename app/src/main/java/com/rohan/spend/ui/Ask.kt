@@ -115,7 +115,7 @@ private fun MonthBars(bars: List<Bar>) {
             val frac = if (b.value == 0L) 0f else (b.value.toFloat() / max).coerceAtLeast(.06f)
             Box(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.BottomCenter) {
                 Box(
-                    Modifier.fillMaxWidth().fillMaxHeight(grown(frac.coerceAtLeast(.03f), 60L + 25L * i).coerceAtLeast(.001f))
+                    Modifier.fillMaxWidth().grownHeight(frac.coerceAtLeast(.03f), 60L + 25L * i)
                         .clip(RoundedCornerShape(5.dp)).background(if (b.value == 0L) C.noSpend else C.heat[2]),
                 )
             }

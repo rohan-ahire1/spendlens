@@ -69,14 +69,14 @@ fun PacePill(b: BudgetState) {
 /** A small ring for a Home tile: how much of the budget is gone. Sits on the tile's own colour. */
 @Composable
 fun BudgetRing(b: BudgetState, modifier: Modifier = Modifier, size: Dp = 18.dp) {
-    val f = grown(b.fraction.coerceAtMost(1f), 200)
+    val f = growth(b.fraction.coerceAtMost(1f), 200)
     val over = b.pace == Pace.OVER
     Canvas(modifier.size(size)) {
         val w = 2.5.dp.toPx()
         val inset = w / 2
         val arc = Size(this.size.width - w, this.size.height - w)
         drawArc(Color.White.copy(alpha = .3f), 0f, 360f, false, Offset(inset, inset), arc, style = Stroke(w))
-        drawArc(if (over) C.warnBg else Color.White, -90f, 360f * f, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
+        drawArc(if (over) C.warnBg else Color.White, -90f, 360f * f.value, false, Offset(inset, inset), arc, style = Stroke(w, cap = StrokeCap.Round))
     }
 }
 

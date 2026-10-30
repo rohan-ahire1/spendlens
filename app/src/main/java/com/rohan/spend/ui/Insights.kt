@@ -177,11 +177,10 @@ private fun WhenYouSpend(h: Habits) {
         }
         Row(Modifier.fillMaxWidth().height(90.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.Bottom) {
             h.weekday.forEachIndexed { i, v ->
-                val f = grown((v.toFloat() / max).coerceAtLeast(.04f), 100L + 40L * i).coerceAtLeast(.001f)
                 Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Bottom) {
                     Text(short(v), style = T.tiny.copy(fontSize = 11.sp, color = if (i == peak) C.ink else C.faint, fontWeight = FontWeight.SemiBold), maxLines = 1)
                     Spacer(Modifier.height(4.dp))
-                    Box(Modifier.fillMaxWidth().weight(1f, fill = false).fillMaxHeight(f).clip(RoundedCornerShape(6.dp)).background(if (i == peak) C.heat[3] else C.heat[1]))
+                    Box(Modifier.fillMaxWidth().weight(1f, fill = false).grownHeight((v.toFloat() / max).coerceAtLeast(.04f), 100L + 40L * i).clip(RoundedCornerShape(6.dp)).background(if (i == peak) C.heat[3] else C.heat[1]))
                 }
             }
         }
@@ -198,8 +197,8 @@ private fun WhenYouSpend(h: Habits) {
             Row(Modifier.fillMaxWidth().height(10.dp), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 h.daypart.forEachIndexed { i, v ->
                     if (v > 0) {
-                        val g = grown(1f, 300L + 80L * i).coerceAtLeast(.001f)
-                        Box(Modifier.weight(v.toFloat() / total).fillMaxHeight().graphicsLayer { scaleX = g; transformOrigin = TransformOrigin(0f, .5f) }
+                        val g = growth(1f, 300L + 80L * i)
+                        Box(Modifier.weight(v.toFloat() / total).fillMaxHeight().graphicsLayer { scaleX = g.value.coerceAtLeast(.001f); transformOrigin = TransformOrigin(0f, .5f) }
                             .clip(CircleShape).background(C.heat[3 - i]))
                     }
                 }

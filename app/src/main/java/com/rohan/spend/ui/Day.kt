@@ -157,7 +157,6 @@ private fun Hours(modifier: Modifier, txns: List<Txn>) {
             Spacer(Modifier.height(10.dp))
             Row(Modifier.fillMaxWidth().height(36.dp), horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.Bottom) {
                 byHour.forEachIndexed { i, v ->
-                    val f = grown(if (v == 0L) .12f else kotlin.math.sqrt(v.toFloat() / max).coerceAtLeast(.25f), 80L + 15L * i).coerceAtLeast(.001f)
                     val color by animateColorAsState(
                         when {
                             v == 0L -> C.noSpend
@@ -165,7 +164,7 @@ private fun Hours(modifier: Modifier, txns: List<Txn>) {
                             else -> C.heat[1]
                         }, label = "hour",
                     )
-                    Box(Modifier.weight(1f).fillMaxHeight(f).clip(RoundedCornerShape(3.dp)).background(color))
+                    Box(Modifier.weight(1f).grownHeight(if (v == 0L) .12f else kotlin.math.sqrt(v.toFloat() / max).coerceAtLeast(.25f), 80L + 15L * i).clip(RoundedCornerShape(3.dp)).background(color))
                 }
             }
             Spacer(Modifier.height(6.dp))
