@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -110,14 +111,16 @@ class Nav(start: List<Entry>, private var next: Int) {
 @Composable
 fun SpendApp(vm: AppViewModel, onAskPermission: () -> Unit) {
     val s by vm.state.collectAsStateWithLifecycle()
-    val base = Typography()
-    val type = Typography(
-        headlineSmall = base.headlineSmall.copy(fontFamily = Plex, fontWeight = FontWeight.SemiBold),
-        bodyLarge = base.bodyLarge.copy(fontFamily = Plex),
-        bodyMedium = base.bodyMedium.copy(fontFamily = Plex),
-        bodySmall = base.bodySmall.copy(fontFamily = Plex),
-        labelLarge = base.labelLarge.copy(fontFamily = Plex),
-    )
+    val type = remember {
+        val base = Typography()
+        Typography(
+            headlineSmall = base.headlineSmall.copy(fontFamily = Plex, fontWeight = FontWeight.SemiBold),
+            bodyLarge = base.bodyLarge.copy(fontFamily = Plex),
+            bodyMedium = base.bodyMedium.copy(fontFamily = Plex),
+            bodySmall = base.bodySmall.copy(fontFamily = Plex),
+            labelLarge = base.labelLarge.copy(fontFamily = Plex),
+        )
+    }
     MaterialTheme(typography = type) { ProvideTextStyle(T.body) { Root(vm, s, onAskPermission) } }
 }
 
