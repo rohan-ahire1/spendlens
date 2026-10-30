@@ -44,7 +44,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
-enum class Stage { NEEDS_PERMISSION, SCANNING, READY }
+enum class Stage { NEEDS_PERMISSION, LOADING, SCANNING, READY }
 
 /** Everything the slow numbers depend on. A state change that leaves these alone costs nothing to show. */
 private data class Inputs(
@@ -190,6 +190,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _progress = MutableStateFlow(ScanProgress())
     val progress: StateFlow<ScanProgress> = _progress
     private var scanJob: Job? = null
+    private var loadJob: Job? = null
     private val cacheFile = TxnCache.file(app)
     /** Highest SMS _ID already read, or -1 when there's no cache and everything must be read. */
     private var maxSmsId = -1L
@@ -228,15 +229,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Shows the saved transactions straight away and only reads what's new; the scan screen is for the very first run. */
     private fun start() {
-        if (maxSmsId < 0) {
-            // A small file read on the main thread, so the first frame is the real app, not a flash of the scan screen.
-            TxnCache.load(cacheFile)?.let { c ->
-                maxSmsId = c.maxId
-                lastSmsDate = c.lastDate
-                _state.update { it.copy(stage = Stage.READY, txns = c.txns, foundCount = c.txns.size) }
-            }
+        if (loadJob?.isActive == true) return
+        if (maxSmsId >= 0) {
+            if (_state.value.autoRefresh) scan(firstTime = false)
+            return
         }
-        if (maxSmsId < 0) scan(firstTime = true) else if (_state.value.autoRefresh) scan(firstTime = false)
+        if (!cacheFile.exists()) return scan(firstTime = true)
+        // Stays on a blank screen rather than the scan screen, and the main thread stays free to draw it.
+        _state.update { it.copy(stage = Stage.LOADING) }
+        loadJob = viewModelScope.launch {
+            val c = withContext(Dispatchers.IO) { TxnCache.load(cacheFile) } ?: return@launch scan(firstTime = true)
+            maxSmsId = c.maxId
+            lastSmsDate = c.lastDate
+            withContext(Dispatchers.Default) { _state.value.copy(txns = c.txns).warm() }
+            _state.update { it.copy(stage = Stage.READY, txns = c.txns, foundCount = c.txns.size) }
+            if (_state.value.autoRefresh) scan(firstTime = false)
+        }
     }
 
     private fun scan(firstTime: Boolean, full: Boolean = false) {

@@ -2,6 +2,7 @@ package com.rohan.spend.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -126,14 +127,20 @@ fun SpendApp(vm: AppViewModel, onAskPermission: () -> Unit) {
 
 @Composable
 private fun Root(vm: AppViewModel, s: AppState, onAskPermission: () -> Unit) {
-    FrostBackground(animate = s.stage != Stage.READY, blobs = s.stage != Stage.READY) {
+    val glowing = s.stage == Stage.NEEDS_PERMISSION || s.stage == Stage.SCANNING
+    FrostBackground(animate = glowing, blobs = glowing) {
         AnimatedContent(
             targetState = s.stage,
-            transitionSpec = { (fadeIn(tween(500)) + scaleIn(initialScale = .96f)) togetherWith fadeOut(tween(300)) },
+            transitionSpec = {
+                // Saved payments load in moments, so a slow entrance here would only make opening feel slower.
+                if (initialState == Stage.LOADING) fadeIn(tween(120)) togetherWith ExitTransition.None
+                else (fadeIn(tween(500)) + scaleIn(initialScale = .96f)) togetherWith fadeOut(tween(300))
+            },
             label = "stage",
         ) { stage ->
             when (stage) {
                 Stage.NEEDS_PERMISSION -> OnboardingScreen(onAskPermission)
+                Stage.LOADING -> Box(Modifier.fillMaxSize())
                 Stage.SCANNING -> ScanScreen(vm.progress.collectAsStateWithLifecycle().value)
                 Stage.READY -> CompositionLocalProvider(LocalToday provides s.today) { Main(vm, s) }
             }
