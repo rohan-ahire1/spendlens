@@ -1,5 +1,6 @@
 package com.rohan.spend.data
 
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 import kotlin.math.roundToLong
 
@@ -37,10 +38,14 @@ object Refunds {
         "your", "account", "card", "credit", "debit", "transfer", "received", "towards", "for", "neft", "imps", "via", "ref",
     )
 
-    private fun words(s: String) = s.lowercase().split(Regex("[^a-z]+")).filter { it.length >= 3 && it !in generic }.toSet()
+    private val nonLetters = Regex("[^a-z]+")
+    // Matching compares each refund with every recent payment, so the same few payee names come up thousands of times.
+    private val wordsOf = ConcurrentHashMap<String, Set<String>>()
+
+    private fun words(s: String) = wordsOf.getOrPut(s) { s.lowercase().split(nonLetters).filter { it.length >= 3 && it !in generic }.toSet() }
 
     fun samePayee(a: Txn, b: Txn): Boolean =
-        (a.payeeKey == b.payeeKey && words(a.payeeKey).isNotEmpty()) || words(a.payee).intersect(words(b.payee)).isNotEmpty()
+        (a.payeeKey == b.payeeKey && words(a.payeeKey).isNotEmpty()) || words(a.payee).any { it in words(b.payee) }
 
     /**
      * What a payment really cost: [mine] if it was split, else the whole [amount], scaled down by
