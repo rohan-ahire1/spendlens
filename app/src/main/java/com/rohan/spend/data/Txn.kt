@@ -1,5 +1,7 @@
 package com.rohan.spend.data
 
+import java.time.LocalDate
+import java.time.YearMonth
 import kotlin.math.abs
 
 enum class Channel(val label: String) { UPI("UPI"), CARD("Card"), BANK("Bank"), ATM("ATM") }
@@ -19,6 +21,12 @@ data class Txn(
     val sender: String,
 ) {
     val signed: Long get() = if (debit) -amount else amount
+
+    // Every screen asks these of every payment, many times over, so each is worked out once.
+    val day: LocalDate = dayOf(time)
+    val yearMonth: YearMonth = YearMonth.of(day.year, day.monthValue)
+    /** The category its text suggests, before the user's edits. Lives here so it outlasts each new [com.rohan.spend.ui.AppState]. */
+    val auto: Cat by lazy(LazyThreadSafetyMode.PUBLICATION) { Categorizer.auto(this) }
 }
 
 /** ₹1,20,966 style grouping. */

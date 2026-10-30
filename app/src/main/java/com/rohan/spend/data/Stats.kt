@@ -9,8 +9,10 @@ import kotlin.math.abs
 
 private val zone: ZoneId = ZoneId.systemDefault()
 
-fun Txn.date(): LocalDate = Instant.ofEpochMilli(time).atZone(zone).toLocalDate()
-fun Txn.month(): YearMonth = YearMonth.from(date())
+internal fun dayOf(time: Long): LocalDate = Instant.ofEpochMilli(time).atZone(zone).toLocalDate()
+
+fun Txn.date(): LocalDate = day
+fun Txn.month(): YearMonth = yearMonth
 
 /** User choices that change how totals are counted. */
 data class Counting(

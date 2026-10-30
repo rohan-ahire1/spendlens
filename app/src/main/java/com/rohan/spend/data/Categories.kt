@@ -54,6 +54,7 @@ object Categorizer {
 
     private val salaryRe = Regex("""salary|\bsal\b|payroll""", RegexOption.IGNORE_CASE)
     private val refundRe = Regex("""refund|reversed|reversal|cashback""", RegexOption.IGNORE_CASE)
+    private val neftRe = Regex("NEFT", RegexOption.IGNORE_CASE)
 
     fun auto(t: Txn): Cat {
         if (!t.debit) {
@@ -61,7 +62,7 @@ object Categorizer {
                 refundRe.containsMatchIn(t.body) -> Cat.REFUND
                 salaryRe.containsMatchIn(t.body) -> Cat.SALARY
                 // Big NEFT credits from a company are almost always salary.
-                Regex("NEFT", RegexOption.IGNORE_CASE).containsMatchIn(t.body) && t.amount >= 25_000_00 -> Cat.SALARY
+                neftRe.containsMatchIn(t.body) && t.amount >= 25_000_00 -> Cat.SALARY
                 else -> Cat.RECEIVED
             }
         }
