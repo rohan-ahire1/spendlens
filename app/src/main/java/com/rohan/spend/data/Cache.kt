@@ -17,7 +17,7 @@ data class Snapshot(val maxId: Long, val lastDate: Long, val txns: List<Txn>)
 /** Parsed transactions kept on the phone so a cold start doesn't reread 18 months of SMS. */
 object TxnCache {
     /** Bump whenever SmsParser or Txn changes, so old caches are thrown away and the inbox is read again. */
-    const val VERSION = 2
+    const val VERSION = 3
     private const val MAGIC = 0x5350454E // "SPEN"
 
     fun write(out: OutputStream, s: Snapshot) {

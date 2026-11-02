@@ -64,6 +64,23 @@ class SmsParserTest {
         assertNull(parse("Sent Rs.250.00 To Zepto from a/c 1234", sender = "JD-FRIEND"))
     }
 
+    @Test fun skipsOffers() {
+        assertNull(parse("You could get a Rs.15,000 voucher on your HDFC Bank Credit Card. Amount received after you complete the steps."))
+        assertNull(parse("Spend on your HDFC Bank Card and get Rs.15,000 Amazon voucher. Cashback will be credited to your account."))
+        assertNull(parse("Voucher worth Rs.15,000 received on your HDFC Bank a/c. Claim today."))
+        assertNull(parse("Rs.15,000 credited to your HDFC Bank a/c on activation", sender = "VM-HDFCBK-P"))
+    }
+
+    @Test fun keepsRealCashbackAndVoucherSpends() {
+        val cashback = parse("Rs.150.00 cashback credited to your HDFC Bank A/c XX1234 on 12-10-26")!!
+        assertFalse(cashback.debit)
+        assertEquals(150_00L, cashback.amount)
+        val earned = parse("You have earned cashback of Rs.50, credited to a/c XX1234")!!
+        assertEquals(50_00L, earned.amount)
+        val spend = parse("Spent Rs.500 On HDFC Bank Card 5678 At AMAZON GIFT VOUCHER On 2026-10-11:20:15:01.Not You?")!!
+        assertTrue(spend.debit)
+    }
+
     @Test fun indianGrouping() {
         assertEquals("₹1,20,966", inr(1_20_966_00))
         assertEquals("−₹42,027", inr(-42_027_00))

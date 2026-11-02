@@ -20,6 +20,13 @@ object SmsParser {
             """received towards your .*credit card|payment .*received .*credit card|credit card .*payment .*received""",
         I,
     )
+    // Offers read like payments ("get a Rs.15,000 voucher, credited to your account"). TRAI marks promo senders with -P.
+    private val promoSender = Regex("""-P$""", I)
+    private val promoRe = Regex(
+        """\b(?:get|win|won|earn|claim|avail|unlock|grab|redeem|could|eligible)\b[\s\S]{0,80}\b(?:vouchers?|gift cards?|cashback|rewards?|offers?)\b|""" +
+            """\b(?:vouchers?|gift cards?)\s+(?:worth|of)\b|\b(?:will|to)\s+(?:be|get)\s+credited\b|\bpre-?approved\b|\bapply now\b""",
+        I,
+    )
     private val creditRe = Regex("""\b(credited|received|deposited|refund(?:ed)?|reversed|cashback)\b""", I)
     private val debitRe = Regex("""\b(debited|spent|sent|paid|withdrawn|withdrawal|purchase|transferred)\b""", I)
     private val accountMarker = Regex("""a/?c|account|card|upi|vpa""", I)
@@ -41,7 +48,8 @@ object SmsParser {
 
     fun parse(id: Long, sender: String, body: String, time: Long): Txn? {
         if (!bankSender.containsMatchIn(sender)) return null
-        if (skipRe.containsMatchIn(body)) return null
+        if (promoSender.containsMatchIn(sender)) return null
+        if (skipRe.containsMatchIn(body) || promoRe.containsMatchIn(body)) return null
         if (!accountMarker.containsMatchIn(body)) return null
         val amountMatch = amountRe.find(body) ?: return null
         val amount = toPaise(amountMatch.groupValues[1]) ?: return null
