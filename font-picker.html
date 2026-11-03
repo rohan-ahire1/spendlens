@@ -1,0 +1,84 @@
+<title>Spend Font Picker</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700&family=Newsreader:wght@400;500;600;700&family=Bricolage+Grotesque:wght@400;500;600;700&family=Syne:wght@400;500;600;700&family=Unbounded:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&family=Lexend:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@400;500;600;700&family=Rubik:wght@400;500;600;700&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: a wrapping grid of small phone mocks, one font each, Home screen content */
+:root {
+  --page: #eef0f6; --fg: #15161b; --muted: #6b6f7d; --faint: #9a9eab;
+  --card: rgba(255,255,255,.78); --edge: rgba(255,255,255,.95);
+  --tint: #a58bf0; --peach: #f6a98a; --mint: #9fdcc6; --track: #e3e5ec; --over: #f4834e;
+  --label: #fff;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --page: #121318; --label: #1d1f26; color-scheme: dark } }
+:root[data-theme="dark"] { --page: #121318; --label: #1d1f26; color-scheme: dark }
+body { background: var(--page); color: var(--fg); font-family: system-ui, sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body { color: #eceef4 } }
+:root[data-theme="dark"] body { color: #eceef4 }
+.wrap { max-width: 1200px; margin: 0 auto; padding-block: 28px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1 { font-size: 22px; margin: 0 0 4px; text-wrap: balance }
+.lede { margin: 0 0 22px; opacity: .7; font-size: 14px }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 22px }
+figure { margin: 0; display: grid; gap: 10px }
+figcaption { display: flex; align-items: baseline; gap: 8px; font-size: 13px }
+figcaption b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #15161b; color: #fff; font-size: 12px }
+figcaption .now { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: #f6a98a33 }
+.phone { color: #15161b; border-radius: 28px; padding: 22px 16px 16px; overflow: hidden; position: relative; min-width: 0;
+  background: radial-gradient(120% 60% at 10% 0%, #c9b8fa 0%, transparent 60%), radial-gradient(90% 60% at 100% 30%, #fbd0bd 0%, transparent 60%), radial-gradient(80% 50% at 20% 80%, #cdeee2 0%, transparent 60%), #f4f5f9;
+  display: grid; gap: 12px; font-feature-settings: "tnum" 1 }
+.date { font-size: 11px; color: var(--muted) }
+.title { font-size: 27px; font-weight: 700; letter-spacing: -.02em; line-height: 1; margin-top: -8px }
+.card { background: var(--card); border: 1px solid var(--edge); border-radius: 20px; padding: 14px }
+.small { font-size: 12px; color: var(--muted) }
+.big { font-size: 34px; font-weight: 700; letter-spacing: -.03em; margin: 2px 0 10px }
+.bar { height: 6px; border-radius: 6px; background: var(--over) }
+.row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--muted); margin-top: 8px }
+.pill { font-size: 10.5px; color: #c4521d; background: #fde3d6; padding: 2px 7px; border-radius: 99px }
+.list { display: grid; gap: 10px }
+.item { display: flex; align-items: center; gap: 10px; font-size: 13.5px }
+.ic { width: 28px; height: 28px; border-radius: 9px; flex: none }
+.item span:nth-child(2) { flex: 1; min-width: 0 }
+.item small { display: block; font-size: 11px; color: var(--muted) }
+.amt { font-weight: 600 }
+.tabs { display: flex; gap: 6px; align-items: center; background: var(--card); border: 1px solid var(--edge); border-radius: 99px; padding: 4px; font-size: 10.5px; font-weight: 500; color: var(--muted) }
+.tabs span { flex: 1; text-align: center; padding: 8px 0; border-radius: 99px }
+.tabs .on { background: #15161b; color: #fff }
+</style>
+
+<div class="wrap">
+  <h1>Pick a font for Spend</h1>
+  <p class="lede">Same Home screen in twelve very different fonts: serifs, rounded, wide, narrow and mono. Tell me the letter you like.</p>
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+const fonts = [
+  ["Fraunces", "soft serif"], ["Newsreader", "book serif"], ["Bricolage Grotesque", "quirky"],
+  ["Syne", "wide, artsy"], ["Unbounded", "extra wide"], ["Nunito", "rounded"],
+  ["Lexend", "roomy"], ["JetBrains Mono", "monospace"], ["IBM Plex Sans", "technical"],
+  ["Barlow Semi Condensed", "narrow"], ["Rubik", "soft corners"], ["Schibsted Grotesk", "newsy sans"],
+];
+const rows = [
+  ["#efe6ff", "Shopping", "Croma · 2:14 PM", "−₹24,999"],
+  ["#fff1c7", "Zepto", "Groceries · 7:17 PM", "−₹180"],
+  ["#dcefff", "Uber", "Commute · 5:17 PM", "−₹120"],
+];
+document.getElementById("grid").innerHTML = fonts.map(([name, now], i) => `
+  <figure>
+    <figcaption><b>${String.fromCharCode(65 + i)}</b><span>${name}</span><span class="now">${now}</span></figcaption>
+    <div class="phone" style="font-family:'${name}', system-ui, sans-serif">
+      <div class="date">Wednesday, 28 October</div>
+      <div class="title">Spend</div>
+      <div class="card">
+        <div class="small">Spent this month</div>
+        <div class="big">₹68,040</div>
+        <div class="bar"></div>
+        <div class="row"><span>Usual ₹52,896</span><span class="pill">₹15,144 over</span></div>
+      </div>
+      <div class="card list">${rows.map(([c, a, b, v]) => `
+        <div class="item"><span class="ic" style="background:${c}"></span><span>${a}<small>${b}</small></span><span class="amt">${v}</span></div>`).join("")}
+      </div>
+      <div class="tabs"><span class="on">Home</span><span>Activity</span><span>Insights</span><span>Accounts</span></div>
+    </div>
+  </figure>`).join("");
+</script>
