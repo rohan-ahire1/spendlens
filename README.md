@@ -47,6 +47,8 @@ Run the parser tests with:
 ./gradlew testDebugUnitTest
 ```
 
+Every PR runs unit tests, lint and a debug build.
+
 ## Stack
 
 Kotlin, Jetpack Compose and Material 3. There is no database: transactions are parsed from the SMS inbox on each scan, and your edits are kept in SharedPreferences.
